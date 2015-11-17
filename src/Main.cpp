@@ -1,7 +1,9 @@
-#include "Main.hpp"
-
 #include <iostream>
 #include <csignal>
+
+#include "Main.hpp"
+#include "IEventListener.hpp"
+#include "IRenderer.hpp"
 
 using namespace std;
 using namespace pgp;
@@ -17,6 +19,15 @@ int main(int argc, char **argv) {
 
     program = Main(argc, argv);
 
+    int status = program.init();
+
+    if (status != S_OK) {
+        program.quit();
+        return status;
+    }
+
+    // TODO: Register event listeners and renderers
+
     return program.run();
 }
 
@@ -26,26 +37,36 @@ Main::Main() {
 Main::Main(int c, char **v) : argc(c), argv(v) {
 }
 
-int Main::run() {
-    int status = init();
+void Main::run() {
 
-    if (status != S_OK) {
-        quit();
-        return status;
-    }
-
-    while(!quitFlag) {
+    while (!quitFlag) {
         SDL_Event evt;
-        while(SDL_PollEvent(&evt)) {
-            // TODO: Handle events
+        while (SDL_PollEvent(&evt)) {
+            int processed = 0;
+            IEventListener::EventResponse r;
+            for (const IEventListener &listener : eventListenerList) {
+                r = listener->onEvent(&evt);
+
+                switch (r) {
+                    case IEventListener::EVT_IGNORED:
+                        break;
+                    case IEventListener::EVT_PROCESSED:
+                        processed++;
+                        break;
+                    case IEventListener::EVT_DROPPED:
+                        goto drop;
+                }
+            }
+drop:
+            continue;
         }
 
-        // TODO: Possibly do some processing stuff
-        // TODO: Render stuff
+        for (const IRenderer &renderer : rendererList) {
+            renderer->render();
+        }
     }
 
     onQuit();
-    return S_OK;
 }
 
 int Main::init() {
@@ -54,20 +75,20 @@ int Main::init() {
     }
 
     sdlWindow = SDL_CreateWindow(
-        "Volumetric clouds in movement (hopefuly :P) PRE-ALPHA",
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        1200,
-        800,
-        SDL_WINDOW_OPENGL
-    );
+            "Volumetric clouds in movement (hopefuly :P) PRE-ALPHA",
+            SDL_WINDOWPOS_UNDEFINED,
+            SDL_WINDOWPOS_UNDEFINED,
+            1200,
+            800,
+            SDL_WINDOW_OPENGL
+            );
 
-    if(sdlWindow == NULL) {
+    if (sdlWindow == NULL) {
         cout << "SDL_CreateWindow Error: " << SDL_GetError() << endl;
         return S_SDL_ERROR;
     }
 
-    
+
     return S_OK;
 }
 
