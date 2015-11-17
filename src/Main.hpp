@@ -12,14 +12,14 @@
 using std::vector;
 namespace pgp {
 
-    class Main {
+    class Main : public IEventListener {
     private:
         int argc;
         char **argv;
         SDL_Window *sdlWindow;
         bool quitFlag = false;
-        vector<IEventListener> eventListenerList;
-        vector<IRenderer> rendererList;
+        vector<IEventListener*> eventListenerList;
+        vector<IRenderer*> rendererList;
 
     public:
         Main();
@@ -32,13 +32,16 @@ namespace pgp {
             quitFlag = true;
         };
 
-        inline void registerEventListener(IEventListener &listener) {
+        inline void registerEventListener(IEventListener *listener) {
             eventListenerList.push_back(listener);
         }
 
-        inline void registerRenderer(IRenderer &renderer) {
+        inline void registerRenderer(IRenderer *renderer) {
             rendererList.push_back(renderer);
         }
+
+        // Event listener interface
+        virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
     };
 }

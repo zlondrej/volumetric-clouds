@@ -28,7 +28,9 @@ int main(int argc, char **argv) {
 
     // TODO: Register event listeners and renderers
 
-    return program.run();
+    program.run();
+
+    return 0;
 }
 
 Main::Main() {
@@ -44,7 +46,7 @@ void Main::run() {
         while (SDL_PollEvent(&evt)) {
             int processed = 0;
             IEventListener::EventResponse r;
-            for (const IEventListener &listener : eventListenerList) {
+            for (IEventListener *listener : eventListenerList) {
                 r = listener->onEvent(&evt);
 
                 switch (r) {
@@ -58,14 +60,16 @@ void Main::run() {
                 }
             }
 drop:
-            continue;
+            if(quitFlag) {
+                goto quit;
+            }
         }
 
-        for (const IRenderer &renderer : rendererList) {
+        for (IRenderer *renderer : rendererList) {
             renderer->render();
         }
     }
-
+quit:
     onQuit();
 }
 
@@ -88,10 +92,34 @@ int Main::init() {
         return S_SDL_ERROR;
     }
 
+    eventListenerList.push_back(this);
 
     return S_OK;
 }
 
 void Main::onQuit() {
     SDL_Quit();
+}
+
+// Event listener interface implementation
+
+IEventListener::EventResponse Main::onEvent(SDL_Event* evt) {
+    if(evt->type == SDL_WINDOWEVENT) {
+        SDL_WindowEvent *e = &evt->window;
+
+        if (e->event == SDL_WINDOWEVENT_CLOSE) {
+            quit();
+            return EVT_DROPPED;
+        }
+    }
+    else if(evt->type == SDL_KEYDOWN) {
+        SDL_KeyboardEvent *e = &evt->key;
+
+        if(e->keysym.sym == SDLK_ESCAPE) {
+            quit();
+            return EVT_DROPPED;
+        }
+    }
+
+    return EVT_IGNORED;
 }
