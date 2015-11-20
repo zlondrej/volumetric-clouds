@@ -8,18 +8,20 @@
 
 #include "IEventListener.hpp"
 #include "IRenderer.hpp"
+#include "IProcessor.hpp"
 
 using std::vector;
 namespace pgp {
 
     class Main : public IEventListener {
-    private:
+    protected:
         int argc;
         char **argv;
         SDL_Window *sdlWindow;
         bool quitFlag = false;
         vector<IEventListener*> eventListenerList;
         vector<IRenderer*> rendererList;
+        vector<IProcessor*> processorList;
 
     public:
         Main();
@@ -38,6 +40,10 @@ namespace pgp {
 
         inline void registerRenderer(IRenderer *renderer) {
             rendererList.push_back(renderer);
+        }
+
+        inline void registerProcessor(IProcessor *processor) {
+            processorList.push_back(processor);
         }
 
         // Event listener interface

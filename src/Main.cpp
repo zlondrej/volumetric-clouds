@@ -65,6 +65,11 @@ drop:
             }
         }
 
+        for (IProcessor *processor : processorList) {
+            // TODO: Pass correct dt
+            processor->step(0.02);
+        }
+
         for (IRenderer *renderer : rendererList) {
             renderer->render();
         }
