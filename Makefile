@@ -10,6 +10,8 @@ OBJ=$(addprefix $(BUILDDIR)/, Main.o Camera.o)
 RM=rm -rf
 MKDIR=mkdir
 
+first: $(BINDIR)/ray-marching .clang_complete
+
 $(BINDIR)/ray-marching: $(OBJ) | $(BINDIR)
 	$(CXX) $(LDFLAGS) $(CXXFLAGS) $(OBJ) $(LDLIBS) -o $@
 
@@ -22,5 +24,8 @@ $(BUILDDIR):
 $(BINDIR):
 	$(MKDIR) $@
 
+.clang_complete: Makefile
+	$(shell pkg-config --cflags $(LIBS) | tr ' ' '\n' > $@)
+
 clean:
-	$(RM) $(BUILDDIR) $(BINDIR)
+	$(RM) $(BUILDDIR) $(BINDIR) .clang_complete
