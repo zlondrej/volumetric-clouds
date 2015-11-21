@@ -5,7 +5,7 @@ LDFLAGS=$(shell pkg-config --libs-only-L --libs-only-other $(LIBS))
 CXXFLAGS=--std=c++11 -g -Wall $(shell pkg-config --cflags $(LIBS))
 BUILDDIR=build
 BINDIR=bin
-OBJ=$(addprefix $(BUILDDIR)/, Main.o)
+OBJ=$(addprefix $(BUILDDIR)/, Main.o Camera.o)
 
 RM=rm -rf
 MKDIR=mkdir
