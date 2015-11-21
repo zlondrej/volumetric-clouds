@@ -1,6 +1,8 @@
-#include "ShaderProgram.hpp"
+#include <GL/glew.h>
 #include <fstream>
 #include <iterator>
+
+#include "BaseShaderProgram.hpp"
 
 using namespace pgp;
 using namespace std;
