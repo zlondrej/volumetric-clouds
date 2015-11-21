@@ -5,10 +5,11 @@
 
 #include "IEventListener.hpp"
 #include "IProcessor.hpp"
+#include "IRenderer.hpp"
 
 namespace pgp {
 
-    class Camera : public IEventListener, public IProcessor {
+    class Camera : public IEventListener, public IProcessor, public IRenderer {
     protected:
         SDL_Window *window;
         glm::ivec2 windowSize;
@@ -22,6 +23,8 @@ namespace pgp {
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
         virtual void step(float dt);
+
+        virtual void render();
 
     };
 

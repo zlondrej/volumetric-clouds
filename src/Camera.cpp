@@ -1,6 +1,7 @@
 #include "Camera.hpp"
 
 #include <glm/ext.hpp>
+#include <GL/glew.h>
 
 using namespace pgp;
 using namespace glm;
@@ -76,4 +77,8 @@ void Camera::step(float dt) {
 
     // TODO: Add speed coeficient
     position += normalize(direction) * dt;
+}
+
+void Camera::render() {
+    glViewport(0, 0, windowSize.x, windowSize.y);
 }
