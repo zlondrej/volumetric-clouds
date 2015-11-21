@@ -54,9 +54,11 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
     } else if (evt->type == SDL_MOUSEMOTION) {
         SDL_MouseMotionEvent *e = &evt->motion;
 
-        // TODO: Adjust mouse sensitivity coeficient
-        rotation.y += e->xrel * 0.2;
-        rotation.x += e->yrel * 0.2;
+        if (SDL_BUTTON_LEFT & e->state) {
+            // TODO: Adjust mouse sensitivity coeficient
+            rotation.y += e->xrel * 0.2;
+            rotation.x += e->yrel * 0.2;
+        }
     }
     return EVT_IGNORED;
 }
