@@ -2,8 +2,7 @@
 #include <csignal>
 
 #include "Main.hpp"
-#include "IEventListener.hpp"
-#include "IRenderer.hpp"
+#include "Camera.hpp"
 
 using namespace std;
 using namespace pgp;
@@ -16,8 +15,6 @@ void sigintHandler(int signal) {
 
 int main(int argc, char **argv) {
     signal(SIGINT, sigintHandler);
-
-    program = Main(argc, argv);
 
     int status = program.init();
 
@@ -34,9 +31,11 @@ int main(int argc, char **argv) {
 }
 
 Main::Main() {
-}
+    Camera camera(sdlWindow);
 
-Main::Main(int c, char **v) : argc(c), argv(v) {
+    registerEventListener(&camera);
+    registerProcessor(&camera);
+
 }
 
 void Main::run() {
@@ -65,14 +64,9 @@ drop:
             }
         }
 
-        for (IProcessor *processor : processorList) {
-            // TODO: Pass correct dt
-            processor->step(0.02);
-        }
+        runProcessors(0.02);
 
-        for (IRenderer *renderer : rendererList) {
-            renderer->render();
-        }
+        runRenderers();
     }
 quit:
     onQuit();
@@ -127,21 +121,4 @@ IEventListener::EventResponse Main::onEvent(SDL_Event* evt) {
     }
 
     return EVT_IGNORED;
-}
-
-void Main::autoregister(IRegisterable *registerable) {
-    IEventListener *listener = dynamic_cast<IEventListener*>(registerable);
-    if(listener) {
-      registerEventListener(listener);
-    }
-
-    IProcessor *processor = dynamic_cast<IProcessor*>(registerable);
-    if(processor) {
-      registerProcessor(processor);
-    }
-
-    IRenderer *renderer = dynamic_cast<IRenderer*>(registerable);
-    if(renderer) {
-      registerRenderer(renderer);
-    }
 }

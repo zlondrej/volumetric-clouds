@@ -9,16 +9,20 @@
 
 namespace pgp {
 
+    using namespace glm;
+
     class Camera : public IEventListener, public IProcessor, public IRenderer {
     protected:
         SDL_Window *window;
-        glm::ivec2 windowSize;
-        glm::vec3 position;
-        glm::vec2 rotation;
-        glm::ivec3 movement;
+        ivec2 windowSize;
+        vec3 position;
+        vec2 rotation;
+        ivec3 movement;
 
     public:
         Camera(SDL_Window *window);
+
+        vec3 getPosition();
 
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
