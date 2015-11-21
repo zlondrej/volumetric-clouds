@@ -1,6 +1,5 @@
 #include "Camera.hpp"
 
-#define GLM_FORCE_RADIANS
 #include <glm/ext.hpp>
 
 using namespace pgp;
