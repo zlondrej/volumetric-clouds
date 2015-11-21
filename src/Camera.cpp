@@ -51,6 +51,8 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
                 return EVT_IGNORED;
         }
 
+        return EVT_PROCESSED;
+
     } else if (evt->type == SDL_MOUSEMOTION) {
         SDL_MouseMotionEvent *e = &evt->motion;
 
@@ -59,6 +61,8 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
             rotation.y += e->xrel * 0.2;
             rotation.x += e->yrel * 0.2;
         }
+
+        return EVT_PROCESSED;
     }
     return EVT_IGNORED;
 }
