@@ -6,6 +6,7 @@
 #include <vector>
 #include <SDL.h>
 
+#include "IRegisterable.hpp"
 #include "IEventListener.hpp"
 #include "IRenderer.hpp"
 #include "IProcessor.hpp"
@@ -46,9 +47,10 @@ namespace pgp {
             processorList.push_back(processor);
         }
 
+        void autoregister(IRegisterable *registerable);
+
         // Event listener interface
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
-
     };
 }
 

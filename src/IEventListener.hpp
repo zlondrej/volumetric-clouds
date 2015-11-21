@@ -1,10 +1,11 @@
 #pragma once
 
 #include <SDL.h>
+#include "IRegisterable.hpp"
 
 namespace pgp {
 
-    class IEventListener {
+    class IEventListener : public IRegisterable {
     public:
 
         enum EventResponse {
@@ -18,4 +19,3 @@ namespace pgp {
     };
 
 }
-
