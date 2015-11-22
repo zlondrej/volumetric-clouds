@@ -27,9 +27,11 @@ namespace pgp {
                 program = 0;
             }
         }
-        string getFileContents(string &filename);
-        GLuint createShaderFromSource(string &source, GLenum shaderType);
-        GLuint createShaderFromFile(string &filename, GLenum shaderType);
+        static string getFileContents(string &filename);
+        static GLuint createShaderFromSource(string &source, GLenum shaderType);
+        static GLuint createShaderFromFile(string &filename, GLenum shaderType);
+        static string getShaderInfo(GLuint shader);
+        static string getProgramInfo(GLuint program);
     };
 
 }

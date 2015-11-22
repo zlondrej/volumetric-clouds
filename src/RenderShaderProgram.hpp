@@ -32,12 +32,12 @@ namespace pgp {
 
         inline void setVertexShaderFromSource(string &source) {
             deleteShader(vertexShader);
-            createShaderFromSource(source, GL_VERTEX_SHADER);
+            vertexShader = createShaderFromSource(source, GL_VERTEX_SHADER);
         }
 
         inline void setFragmentShaderFromSource(string &source) {
             deleteShader(fragmentShader);
-            createShaderFromSource(source, GL_FRAGMENT_SHADER);
+            fragmentShader = createShaderFromSource(source, GL_FRAGMENT_SHADER);
         }
     protected:
         virtual GLuint compile();

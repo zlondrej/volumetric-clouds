@@ -1,4 +1,5 @@
 #include "RenderShaderProgram.hpp"
+#include "Exceptions.hpp"
 
 using namespace pgp;
 
@@ -8,9 +9,9 @@ GLuint RenderShaderProgram::compile() {
     GLuint renderProgram;
 
     if (vertexShader == 0) {
-        throw string("Could not compile render program: Vertex shader missing.");
+        throw Exception("Could not compile render program: Vertex shader missing.");
     } else if (fragmentShader == 0) {
-        throw string("Could not compile render program: Fragment shader missing.");
+        throw Exception("Could not compile render program: Fragment shader missing.");
     }
 
 
@@ -20,13 +21,16 @@ GLuint RenderShaderProgram::compile() {
     glAttachShader(renderProgram, fragmentShader);
 
     glLinkProgram(renderProgram);
-  
-	glGetProgramiv(renderProgram, GL_LINK_STATUS, &linkStatus);
 
-	if (!linkStatus) {
+    glGetProgramiv(renderProgram, GL_LINK_STATUS, &linkStatus);
+
+    if (linkStatus != GL_TRUE) {
+
+        string info = getProgramInfo(renderProgram);
+
         glDeleteProgram(renderProgram);
-        throw string("Could not link render program.");
-	}
+        throw GLException(info);
+    }
 
     return renderProgram;
 
