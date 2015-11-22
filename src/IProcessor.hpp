@@ -4,7 +4,7 @@
 
 namespace pgp {
 
-    class IProcessor : public IRegisterable {
+    class IProcessor : virtual public IRegisterable {
     public:
         virtual void step(float dt) = 0;
     };

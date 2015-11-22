@@ -5,7 +5,7 @@
 
 namespace pgp {
 
-    class IEventListener : public IRegisterable {
+    class IEventListener : virtual public IRegisterable {
     public:
 
         enum EventResponse {
