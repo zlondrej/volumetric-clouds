@@ -86,6 +86,9 @@ void Landscape::render() {
     vec3 cameraPosition = camera->getPosition();
     vec3 atPosition = cameraPosition + camera->getViewVector();
 
+//    std::cout << "Eye: (" << cameraPosition.x << ", " << cameraPosition.y << ", " << cameraPosition.z << ")" << std::endl;
+//    std::cout << "At: (" << atPosition.x << ", " << atPosition.y << ", " << atPosition.z << ")" << std::endl;
+
     vec2 windowSize = camera->getWindowSize();
     float fov = radians(75.0);
     float aspect = windowSize.x / windowSize.y;

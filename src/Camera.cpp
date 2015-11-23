@@ -6,20 +6,19 @@
 using namespace pgp;
 using namespace glm;
 
-Camera::Camera(SDL_Window *_window) : position(0, 0, 0), rotation(0, 0) {
+Camera::Camera(SDL_Window *_window) : position(0., 0, 0), rotation(0, 0) {
     window = _window;
     SDL_GetWindowSize(window, &(windowSize.x), &(windowSize.y));
 }
 
 vec3 Camera::getViewVector() {
-    vec3 direction = vec3(1,1,1);
+    vec3 direction = vec3(1, 1, 1);
 
     direction = rotateX(direction, rotation.x);
     direction = rotateY(direction, rotation.y);
 
     return normalize(direction);
 }
-
 
 IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
     if (evt->type == SDL_WINDOWEVENT) {
@@ -34,32 +33,38 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
             return EVT_PROCESSED;
         }
     } else if (evt->type == SDL_KEYDOWN || evt->type == SDL_KEYUP) {
+        ivec3 positive, negative;
         SDL_KeyboardEvent *e = &evt->key;
 
-        int sign = (evt->type == SDL_KEYDOWN) ? 1 : -1;
+        positive = max(ivec3(0,0,0), movement);
+        negative = min(ivec3(0,0,0), movement);
+
+        int active = (evt->type == SDL_KEYDOWN) ? 1 : 0;
 
         switch (e->keysym.sym) {
             case SDLK_w:
-                movement.z += sign;
+                positive.z = active;
                 break;
             case SDLK_s:
-                movement.z -= sign;
+                negative.z = active;
                 break;
             case SDLK_a:
-                movement.x -= sign;
+                negative.x = active;
                 break;
             case SDLK_d:
-                movement.x += sign;
+                positive.x = active;
                 break;
             case SDLK_LSHIFT:
-                movement.y += sign;
+                positive.y = active;
                 break;
             case SDLK_LCTRL:
-                movement.y -= sign;
+                negative.y = active;
                 break;
             default:
                 return EVT_IGNORED;
         }
+
+        movement = positive - negative;
 
         return EVT_PROCESSED;
 
@@ -68,8 +73,8 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
 
         if (SDL_BUTTON_LEFT & e->state) {
             // TODO: Adjust mouse sensitivity coeficient
-            rotation.y += e->xrel * 0.2;
-            rotation.x += e->yrel * 0.2;
+            rotation.y += e->xrel * 0.005;
+            rotation.x += e->yrel * 0.005;
         }
 
         return EVT_PROCESSED;
@@ -78,11 +83,16 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
 }
 
 void Camera::step(float dt) {
-    vec3 direction = vec3(movement.x, 0, movement.y);
+
+    if (movement.x == 0 && movement.y == 0 && movement.z == 0) {
+        return;
+    }
+
+    vec3 direction = vec3(movement.x, 0, movement.z);
 
     direction = rotateX(direction, rotation.x);
     direction = rotateY(direction, rotation.y);
-    direction.z = movement.z;
+    direction.y += movement.y;
 
 
     // TODO: Add speed coeficient
