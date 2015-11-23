@@ -7,7 +7,7 @@
 
 #include "RegistrablesContainer.hpp"
 
-
+#include "Camera.hpp"
 
 
 namespace pgp {
@@ -15,12 +15,15 @@ namespace pgp {
     class Main : public RegistrablesContainer, public IEventListener {
     protected:
         SDL_Window *sdlWindow;
+        SDL_GLContext context;
         bool quitFlag = false;
+        Camera *camera;
 
     public:
         Main();
+        ~Main();
         void run();
-        int init();
+        void init();
         void onQuit();
 
         inline void quit() {
@@ -29,6 +32,7 @@ namespace pgp {
 
         // Event listener interface
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
+
     };
 }
 

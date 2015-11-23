@@ -3,7 +3,6 @@
 
 #include "Main.hpp"
 #include "Exceptions.hpp"
-#include "Camera.hpp"
 
 using namespace std;
 using namespace pgp;
@@ -33,13 +32,13 @@ int main(int argc, char **argv) {
 }
 
 
+Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL) {
 }
 
-Main::Main() {
-    Camera camera(sdlWindow);
+Main::~Main() {
+    delete landscape;
+    delete camera;
 
-    registerEventListener(&camera);
-    registerProcessor(&camera);
 
 }
 
@@ -77,9 +76,9 @@ quit:
     onQuit();
 }
 
-int Main::init() {
     if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO) != 0) {
         return S_SDL_ERROR;
+void Main::init() {
     }
 
     sdlWindow = SDL_CreateWindow(
@@ -95,9 +94,13 @@ int Main::init() {
         throw string(SDL_GetError());
     }
 
-    eventListenerList.push_back(this);
 
-    return S_OK;
+    camera = new Camera(sdlWindow);
+
+    registerEventListener(this);
+
+    registerEventListener(camera);
+    registerProcessor(camera);
 }
 
 void Main::onQuit() {
