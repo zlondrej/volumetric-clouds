@@ -7,7 +7,7 @@
 
 #include "Landscape.hpp"
 
-#define LANDSCAPE_SIZE 100
+#define LANDSCAPE_SIZE 250
 #define INDEX_COUNT (2 * (LANDSCAPE_SIZE + 1) * LANDSCAPE_SIZE + LANDSCAPE_SIZE)
 
 using namespace pgp;
@@ -149,12 +149,14 @@ void Landscape::step(float dt) {
         for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
             Vertex *v = dataPtr++;
 
-            //            v->position = vec3(row - (LANDSCAPE_SIZE / 2), 0, col - (LANDSCAPE_SIZE / 2));
-            //            std::cout << "Position: (" << v->position.x << ", " << v->position.y << ", " << v->position.z << ")" << std::endl;
-            //            v->color = u8vec3(row * 255 / LANDSCAPE_SIZE, 0, col * 255 / LANDSCAPE_SIZE);
 
-            v->position = vec3(row - (LANDSCAPE_SIZE / 2) + pos.x, sin(float((row - LANDSCAPE_SIZE / 2 + pos.x) * (col - LANDSCAPE_SIZE / 2 + pos.z)) / 15) * 2, col - (LANDSCAPE_SIZE / 2) + pos.z);
-            v->color = u8vec3(row * 255 / LANDSCAPE_SIZE, sin(float(row * col))*255, col * 255 / LANDSCAPE_SIZE);
+            v->position.x = (row - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            v->position.z = (col - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            v->position.y = sin(v->position.x + v->position.z);
+
+            v->color.x = (sin(v->position.x / 1.3f) / 2.0f + 0.5f) * 255;
+            v->color.z = (sin(v->position.z / 0.7f + 12.35f) / 2.0f + 0.5f) * 255;
+            v->color.y = (v->color.x + (int) v->color.z) / 2;
 
         }
     }
