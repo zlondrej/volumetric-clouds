@@ -2,6 +2,7 @@
 #include <csignal>
 
 #include "Main.hpp"
+#include "Exceptions.hpp"
 #include "Camera.hpp"
 
 using namespace std;
@@ -16,18 +17,22 @@ void sigintHandler(int signal) {
 int main(int argc, char **argv) {
     signal(SIGINT, sigintHandler);
 
-    int status = program.init();
+    try {
+        program.init();
 
-    if (status != S_OK) {
-        program.quit();
-        return status;
+        program.run();
+    } catch (string &str) {
+        cerr << str << endl;
+        return 2;
+    } catch (Exception &e) {
+        cerr << "Exception: " << e.getMessage() << endl;
+        return 1;
     }
 
-    // TODO: Register event listeners and renderers
-
-    program.run();
-
     return 0;
+}
+
+
 }
 
 Main::Main() {
@@ -87,8 +92,7 @@ int Main::init() {
             );
 
     if (sdlWindow == NULL) {
-        cout << "SDL_CreateWindow Error: " << SDL_GetError() << endl;
-        return S_SDL_ERROR;
+        throw string(SDL_GetError());
     }
 
     eventListenerList.push_back(this);
