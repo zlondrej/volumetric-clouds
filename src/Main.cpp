@@ -42,7 +42,7 @@ void glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLs
     }
 }
 
-Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL) {
+Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL), landscape(NULL) {
 }
 
 Main::~Main() {
@@ -116,11 +116,14 @@ void Main::init() {
     glDebugMessageCallback((GLDEBUGPROC) glDebugCallback, NULL);
 
     camera = new Camera(sdlWindow);
+    landscape = new Landscape(camera);
 
     registerEventListener(this);
 
     registerEventListener(camera);
     registerProcessor(camera);
+
+    autoregister(landscape);
 }
 
 void Main::onQuit() {

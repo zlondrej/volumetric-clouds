@@ -11,6 +11,16 @@ Camera::Camera(SDL_Window *_window) : position(0, 0, 0), rotation(0, 0) {
     SDL_GetWindowSize(window, &(windowSize.x), &(windowSize.y));
 }
 
+vec3 Camera::getViewVector() {
+    vec3 direction = vec3(1,1,1);
+
+    direction = rotateX(direction, rotation.x);
+    direction = rotateY(direction, rotation.y);
+
+    return normalize(direction);
+}
+
+
 IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
     if (evt->type == SDL_WINDOWEVENT) {
         SDL_WindowEvent *e = &evt->window;

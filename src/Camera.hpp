@@ -22,7 +22,15 @@ namespace pgp {
     public:
         Camera(SDL_Window *window);
 
-        vec3 getPosition();
+        inline vec3 getPosition() {
+            return position;
+        };
+
+        inline ivec2 getWindowSize() {
+            return windowSize;
+        }
+
+        vec3 getViewVector();
 
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 

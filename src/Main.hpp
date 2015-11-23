@@ -6,8 +6,8 @@
 #include <SDL.h>
 
 #include "RegistrablesContainer.hpp"
-
 #include "Camera.hpp"
+#include "Landscape.hpp"
 
 
 namespace pgp {
@@ -18,6 +18,7 @@ namespace pgp {
         SDL_GLContext context;
         bool quitFlag = false;
         Camera *camera;
+        Landscape *landscape;
 
     public:
         Main();
