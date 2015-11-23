@@ -21,7 +21,7 @@ typedef struct {
     u8vec3 color;
 } Vertex;
 
-Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0) {
+Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0), polygonMode(GL_FILL) {
     string vertexShaderFile("./shaders/landscape.vert");
     string fragmentShaderFile("./shaders/landscape.frag");
 
@@ -126,7 +126,7 @@ void Landscape::render() {
 
     glBindVertexArray(vao);
 
-    //    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
     glDrawElements(GL_TRIANGLE_STRIP, INDEX_COUNT, GL_UNSIGNED_SHORT, 0);
@@ -162,4 +162,27 @@ void Landscape::step(float dt) {
     }
 
     glUnmapBuffer(GL_ARRAY_BUFFER);
+}
+
+IEventListener::EventResponse Landscape::onEvent(SDL_Event* evt) {
+    if (evt->type == SDL_KEYDOWN) {
+        SDL_KeyboardEvent *e = &evt->key;
+
+        if (e->keysym.sym == SDLK_p) {
+            switch (polygonMode) {
+                case GL_FILL:
+                    polygonMode = GL_LINE;
+                    break;
+                case GL_LINE:
+                    polygonMode = GL_POINT;
+                    break;
+                case GL_POINT:
+                    polygonMode = GL_FILL;
+                    break;
+            }
+            return EVT_PROCESSED;
+        }
+    }
+
+    return EVT_IGNORED;
 }

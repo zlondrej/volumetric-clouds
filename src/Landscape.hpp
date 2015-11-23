@@ -8,13 +8,14 @@
 
 namespace pgp {
 
-    class Landscape : public IRenderer, public IProcessor, public RegistrablesContainer {
+    class Landscape : public IRenderer, public IProcessor, public IEventListener, public RegistrablesContainer {
     private:
         Camera *camera;
         RenderShaderProgram renderProgram;
         GLuint vao, vbo, ebo;
         GLint uView, uProjection;
         GLint aPosition, aColor;
+        GLenum polygonMode;
     public:
         Landscape(Camera *camera);
 
@@ -22,6 +23,7 @@ namespace pgp {
 
         virtual void step(float dt);
 
+        virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
     };
 
