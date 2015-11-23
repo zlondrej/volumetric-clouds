@@ -75,7 +75,7 @@ void Main::run() {
                 }
             }
 drop:
-            if(quitFlag) {
+            if (quitFlag) {
                 goto quit;
             }
         }
@@ -130,18 +130,17 @@ void Main::onQuit() {
 // Event listener interface implementation
 
 IEventListener::EventResponse Main::onEvent(SDL_Event* evt) {
-    if(evt->type == SDL_WINDOWEVENT) {
+    if (evt->type == SDL_WINDOWEVENT) {
         SDL_WindowEvent *e = &evt->window;
 
         if (e->event == SDL_WINDOWEVENT_CLOSE) {
             quit();
             return EVT_DROPPED;
         }
-    }
-    else if(evt->type == SDL_KEYDOWN) {
+    } else if (evt->type == SDL_KEYDOWN) {
         SDL_KeyboardEvent *e = &evt->key;
 
-        if(e->keysym.sym == SDLK_ESCAPE) {
+        if (e->keysym.sym == SDLK_ESCAPE) {
             quit();
             return EVT_DROPPED;
         }
