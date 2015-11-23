@@ -49,6 +49,8 @@ Main::~Main() {
     delete landscape;
     delete camera;
 
+    SDL_DestroyWindow(sdlWindow);
+    SDL_GL_DeleteContext(context);
 
 }
 
@@ -104,6 +106,9 @@ void Main::init() {
         throw string(SDL_GetError());
     }
 
+    context = SDL_GL_CreateContext(sdlWindow);
+
+    glewInit();
 
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
