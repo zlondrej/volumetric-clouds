@@ -83,6 +83,8 @@ drop:
         runProcessors(0.02);
 
         runRenderers();
+
+        SDL_GL_SwapWindow(sdlWindow);
     }
 quit:
     onQuit();
