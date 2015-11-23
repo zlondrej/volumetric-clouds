@@ -76,9 +76,9 @@ quit:
     onQuit();
 }
 
-    if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO) != 0) {
-        return S_SDL_ERROR;
 void Main::init() {
+    if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+        throw string("SDL_Init failed.");
     }
 
     sdlWindow = SDL_CreateWindow(
