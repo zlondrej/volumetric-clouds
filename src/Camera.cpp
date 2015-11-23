@@ -8,7 +8,7 @@
 using namespace pgp;
 using namespace glm;
 
-Camera::Camera(SDL_Window *_window) : position(0., 0, 0), rotation(0, 0) {
+Camera::Camera(SDL_Window *_window) : position(0.0, 3.0, 0.0), rotation(0, 0) {
     window = _window;
     SDL_GetWindowSize(window, &(windowSize.x), &(windowSize.y));
 }
