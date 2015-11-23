@@ -22,13 +22,21 @@ namespace pgp {
     public:
         Landscape(Camera *camera);
 
-        void reloadTerrain();
-
         virtual void render();
 
         virtual void step(float dt);
 
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
+
+    private:
+
+        static float smoothNoise2D(float x, float y);
+
+        static float noise2D(int x, int y);
+
+        static float interpolateCos(float a, float b, float factor);
+
+        void reloadTerrain();
 
     };
 

@@ -114,7 +114,8 @@ void Landscape::reloadTerrain() {
 
             v->position.x = (row - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
             v->position.z = (col - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
-            v->position.y = sin(v->position.x + v->position.z);
+
+            v->position.y = smoothNoise2D(v->position.x / 47.4, v->position.z / -57.3) * 15.0;
 
             v->color.x = (sin(v->position.x / 1.3f) / 2.0f + 0.5f) * 255;
             v->color.z = (sin(v->position.z / 0.7f + 12.35f) / 2.0f + 0.5f) * 255;
@@ -124,6 +125,52 @@ void Landscape::reloadTerrain() {
     }
 
     glUnmapBuffer(GL_ARRAY_BUFFER);
+}
+
+float Landscape::smoothNoise2D(float _x, float _y) {
+    int x0 = _x;
+    int y0 = _y;
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float rx = _x - x0;
+    float ry = _y - y0;
+
+
+    float a0 = 0, a1 = 0, b0 = 0, b1 = 0;
+
+    for (int i = 1; i <= 4; i++) {
+        a0 += noise2D(x0 * i, y0 * i);
+        a1 += noise2D(x1 * i, y0 * i);
+
+        b0 += noise2D(x0 * i, y1 * i);
+        b1 += noise2D(x1 * i, y1 * i);
+    }
+
+    a0 /= 4.0;
+    a1 /= 4.0;
+    b0 /= 4.0;
+    b1 /= 4.0;
+
+    float a = interpolateCos(a0, a1, rx);
+    float b = interpolateCos(b0, b1, rx);
+
+    return interpolateCos(a, b, ry);
+
+}
+
+float Landscape::noise2D(int x, int y) {
+    x += 338573;
+    y += 77313501;
+    int n = (((x * x << 3) * 23) + (y * y << 1) * 51) * x * y;
+
+    return (((((n * 3342687 + 1144763) & 0xf2fcf7dd) - 77663544) * -113) * n & 0x7fffffff) / (float) INT_MAX;
+}
+
+float Landscape::interpolateCos(float a, float b, float factor) {
+    factor = (1 - cos(factor * glm::pi<float>())) * 0.5;
+
+    return a * (1 - factor) + b * factor;
 }
 
 void Landscape::render() {
