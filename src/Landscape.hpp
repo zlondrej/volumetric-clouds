@@ -8,6 +8,8 @@
 
 namespace pgp {
 
+    using glm::vec3;
+
     class Landscape : public IRenderer, public IProcessor, public IEventListener, public RegistrablesContainer {
     private:
         Camera *camera;
@@ -16,8 +18,11 @@ namespace pgp {
         GLint uView, uProjection;
         GLint aPosition, aColor;
         GLenum polygonMode;
+        vec3 center;
     public:
         Landscape(Camera *camera);
+
+        void reloadTerrain();
 
         virtual void render();
 

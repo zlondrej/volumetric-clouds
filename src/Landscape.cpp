@@ -92,6 +92,38 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
     glBindVertexArray(0);
+
+    center = camera->getPosition();
+    reloadTerrain();
+}
+
+void Landscape::reloadTerrain() {
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    Vertex *vboData = (Vertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+
+    vec3 pos = camera->getPosition();
+
+    Vertex *dataPtr = vboData;
+    for (int row = 0; row <= LANDSCAPE_SIZE; row++) {
+        for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
+            Vertex *v = dataPtr++;
+
+
+            v->position.x = (row - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            v->position.z = (col - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            v->position.y = sin(v->position.x + v->position.z);
+
+            v->color.x = (sin(v->position.x / 1.3f) / 2.0f + 0.5f) * 255;
+            v->color.z = (sin(v->position.z / 0.7f + 12.35f) / 2.0f + 0.5f) * 255;
+            v->color.y = (v->color.x + (int) v->color.z) / 2;
+
+        }
+    }
+
+    glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 void Landscape::render() {
@@ -136,32 +168,10 @@ void Landscape::render() {
 }
 
 void Landscape::step(float dt) {
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-    Vertex *vboData = (Vertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-
-    vec3 pos = camera->getPosition();
-
-    Vertex *dataPtr = vboData;
-    for (int row = 0; row <= LANDSCAPE_SIZE; row++) {
-        for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
-            Vertex *v = dataPtr++;
-
-
-            v->position.x = (row - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
-            v->position.z = (col - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
-            v->position.y = sin(v->position.x + v->position.z);
-
-            v->color.x = (sin(v->position.x / 1.3f) / 2.0f + 0.5f) * 255;
-            v->color.z = (sin(v->position.z / 0.7f + 12.35f) / 2.0f + 0.5f) * 255;
-            v->color.y = (v->color.x + (int) v->color.z) / 2;
-
-        }
+    if (distance(center, camera->getPosition()) > 15.0) {
+        reloadTerrain();
+        center = camera->getPosition();
     }
-
-    glUnmapBuffer(GL_ARRAY_BUFFER);
 }
 
 IEventListener::EventResponse Landscape::onEvent(SDL_Event* evt) {
