@@ -16,9 +16,10 @@ namespace pgp {
         RenderShaderProgram renderProgram;
         GLuint vao, vbo, ebo;
         GLint uView, uProjection;
-        GLint aPosition, aColor;
+        GLint aPosition, aNormal, aColor;
         GLenum polygonMode;
         vec3 center;
+        float *heightmap;
     public:
         Landscape(Camera *camera);
 
@@ -29,6 +30,10 @@ namespace pgp {
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
     private:
+
+        static inline float parametrizedNoise(float x, float y, float xPeriod, float yPeriod, float amplitude) {
+            return smoothNoise2D(x * xPeriod, y * yPeriod) * amplitude;
+        }
 
         static float smoothNoise2D(float x, float y);
 

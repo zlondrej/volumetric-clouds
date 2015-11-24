@@ -39,6 +39,7 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     uView = glGetUniformLocation(program, "view");
 
     aPosition = glGetAttribLocation(program, "position");
+    aNormal = glGetAttribLocation(program, "normal");
     aColor = glGetAttribLocation(program, "color");
 
     glGenVertexArrays(1, &vao);
@@ -49,9 +50,10 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glBufferData(GL_ARRAY_BUFFER, (LANDSCAPE_SIZE + 1) * (LANDSCAPE_SIZE + 1) * sizeof (Vertex), NULL, GL_STREAM_DRAW);
 
     glEnableVertexAttribArray(aPosition);
-    glVertexAttribPointer(aPosition, 3, GL_FLOAT, GL_FALSE, sizeof (Vertex), offsetof(Vertex, position));
+    glVertexAttribPointer(aPosition, 3, GL_FLOAT, GL_FALSE, sizeof (Vertex), (GLvoid*) offsetof(Vertex, position));
 
-    // Normal attribute
+    glEnableVertexAttribArray(aNormal);
+    glVertexAttribPointer(aNormal, 3, GL_FLOAT, GL_FALSE, sizeof (Vertex), (GLvoid*) offsetof(Vertex, normal));
 
     glEnableVertexAttribArray(aColor);
     glVertexAttribPointer(aColor, 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof (Vertex), (GLvoid*) offsetof(Vertex, color));
@@ -94,6 +96,9 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glBindVertexArray(0);
 
     center = camera->getPosition();
+
+    heightmap = new float[(LANDSCAPE_SIZE + 2) * (LANDSCAPE_SIZE + 2)];
+
     reloadTerrain();
 }
 
@@ -105,21 +110,67 @@ void Landscape::reloadTerrain() {
     Vertex *vboData = (Vertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 
     vec3 pos = camera->getPosition();
+    float *map = heightmap;
+
+    float max = 0;
+    for (int row = -1; row <= LANDSCAPE_SIZE; row++) {
+        for (int col = -1; col <= LANDSCAPE_SIZE; col++) {
+            float x, y, z;
+
+            x = ((row - 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            z = ((col - 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            y = 0;
+
+            y += parametrizedNoise(x, z, 4.0 / LANDSCAPE_SIZE, 2.0 / LANDSCAPE_SIZE, 50.0);
+            y += parametrizedNoise(x + 7769.0, z + 1103.0, 16.0 / LANDSCAPE_SIZE, 18.0 / LANDSCAPE_SIZE, 5.0);
+            y += parametrizedNoise(x - 356.0, z + 32776.0, 64.0 / LANDSCAPE_SIZE, 64.0 / LANDSCAPE_SIZE, 0.5);
+
+            *map = y;
+            map++;
+
+            if (y > max) {
+                max = y;
+            }
+        }
+    }
+
 
     Vertex *dataPtr = vboData;
     for (int row = 0; row <= LANDSCAPE_SIZE; row++) {
         for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
             Vertex *v = dataPtr++;
+            vec3 a, b, c, d;
 
+            // Calculate position
+            v->position.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            v->position.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
+            v->position.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
 
-            v->position.x = (row - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
-            v->position.z = (col - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            a.x = ((row) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            a.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col)];
+            a.z = ((col) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
 
-            v->position.y = smoothNoise2D(v->position.x / 47.4, v->position.z / -57.3) * 15.0;
+            b.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            b.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col)];
+            b.z = ((col) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
 
-            v->color.x = (sin(v->position.x / 1.3f) / 2.0f + 0.5f) * 255;
-            v->color.z = (sin(v->position.z / 0.7f + 12.35f) / 2.0f + 0.5f) * 255;
-            v->color.y = (v->color.x + (int) v->color.z) / 2;
+            c.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            c.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
+            c.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+
+            d.x = ((row) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            d.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col + 1)];
+            d.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+
+            a = normalize(a - c);
+            b = normalize(b - d);
+
+            v->normal = normalize(cross(b, a));
+
+            //            std::cout << "Normal: (" << v->normal.x << ", " << v->normal.y << ", " << v->normal.z << ")" << std::endl;
+
+            // Calculate color
+            v->color = u8vec3(0, 80, 0); // Color is green, grass is green, what is nice color it is. (Haiku?)
 
         }
     }
@@ -130,27 +181,31 @@ void Landscape::reloadTerrain() {
 float Landscape::smoothNoise2D(float _x, float _y) {
     int x0 = _x;
     int y0 = _y;
-    int x1 = x0 + 1;
-    int y1 = y0 + 1;
+
+    int x1, y1;
+
+    if (_x >= 0) {
+        x1 = x0 + 1;
+    } else {
+        x1 = x0 - 1;
+    }
+
+    if (_y >= 0) {
+        y1 = y0 + 1;
+    } else {
+        y1 = y0 - 1;
+    }
 
     float rx = _x - x0;
     float ry = _y - y0;
 
-
     float a0 = 0, a1 = 0, b0 = 0, b1 = 0;
 
-    for (int i = 1; i <= 4; i++) {
-        a0 += noise2D(x0 * i, y0 * i);
-        a1 += noise2D(x1 * i, y0 * i);
+    a0 = noise2D(x0, y0);
+    a1 = noise2D(x1, y0);
 
-        b0 += noise2D(x0 * i, y1 * i);
-        b1 += noise2D(x1 * i, y1 * i);
-    }
-
-    a0 /= 4.0;
-    a1 /= 4.0;
-    b0 /= 4.0;
-    b1 /= 4.0;
+    b0 = noise2D(x0, y1);
+    b1 = noise2D(x1, y1);
 
     float a = interpolateCos(a0, a1, rx);
     float b = interpolateCos(b0, b1, rx);
@@ -162,9 +217,9 @@ float Landscape::smoothNoise2D(float _x, float _y) {
 float Landscape::noise2D(int x, int y) {
     x += 338573;
     y += 77313501;
-    int n = (((x * x << 3) * 23) + (y * y << 1) * 51) * x * y;
+    unsigned int n = ((((x * x) << 3) * 23) + ((y * y) << 1) * 51);
 
-    return (((((n * 3342687 + 1144763) & 0xf2fcf7dd) - 77663544) * -113) * n & 0x7fffffff) / (float) INT_MAX;
+    return (((((n * 3342687 + 1144763) & 0xf2fcf7dd) - 77663544) * -113) * n) / (float) UINT_MAX;
 }
 
 float Landscape::interpolateCos(float a, float b, float factor) {
