@@ -6,6 +6,7 @@
 #include "Landscape.hpp"
 
 #define LANDSCAPE_SIZE 250
+#define LANDSCAPE_SIZEF float(LANDSCAPE_SIZE)
 #define INDEX_COUNT (2 * (LANDSCAPE_SIZE + 1) * LANDSCAPE_SIZE + LANDSCAPE_SIZE)
 
 using namespace pgp;
@@ -131,8 +132,8 @@ void Landscape::reloadTerrain() {
         for (int col = -1; col <= LANDSCAPE_SIZE; col++) {
             float x, y, z;
 
-            x = ((row - 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
-            z = ((col - 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            x = ((row - 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
+            z = ((col - 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
             y = 0;
 
             y += parametrizedNoise(x, z, 4.0 / LANDSCAPE_SIZE, 2.0 / LANDSCAPE_SIZE, 50.0);
@@ -174,25 +175,27 @@ void Landscape::reloadTerrain() {
             vec3 a, b, c, d;
 
             // Calculate position
-            v->position.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            v->position.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
             v->position.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            v->position.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            v->position.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
 
-            a.x = ((row) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            // std::cout << "Position: (" << v->position.x << ", " << v->position.y << ", " << v->position.z << ")" << std::endl;
+
+            a.x = ((row) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
             a.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col)];
-            a.z = ((col) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            a.z = ((col) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
 
-            b.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            b.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
             b.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col)];
-            b.z = ((col) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            b.z = ((col) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
 
-            c.x = ((row + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            c.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
             c.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            c.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            c.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
 
-            d.x = ((row) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.x;
+            d.x = ((row) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
             d.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            d.z = ((col + 1) - (LANDSCAPE_SIZE / 2)) / 2.0f + pos.z;
+            d.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
 
             a = normalize(a - c);
             b = normalize(b - d);
