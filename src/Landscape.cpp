@@ -58,11 +58,11 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_COUNT * sizeof (GLushort), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, INDEX_COUNT * sizeof (GLuint), NULL, GL_STATIC_DRAW);
 
-    GLushort *eboData = (GLushort*) glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+    GLuint *eboData = (GLuint*) glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
 
-    GLushort *dataPtr = eboData;
+    GLuint *dataPtr = eboData;
     //    int ctr = 0;
     for (int row = 0; row < LANDSCAPE_SIZE; row++) {
         for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
@@ -78,7 +78,7 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
             //            std::cout << "Element: " << j << std::endl;
         }
 
-        dataPtr[0] = USHRT_MAX; // Reset index
+        dataPtr[0] = UINT_MAX; // Reset index
         dataPtr++;
         //        ctr++;
 
@@ -295,7 +295,7 @@ void Landscape::render() {
     glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
-    glDrawElements(GL_TRIANGLE_STRIP, INDEX_COUNT, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLE_STRIP, INDEX_COUNT, GL_UNSIGNED_INT, 0);
     glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 
     glBindVertexArray(0);
