@@ -3,8 +3,6 @@
 #include <string>
 #include <glm/gtc/matrix_transform.hpp>
 
-//#include <iostream>
-
 #include "Landscape.hpp"
 
 #define LANDSCAPE_SIZE 250
@@ -102,6 +100,22 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     reloadTerrain();
 }
 
+#ifdef WRITE_HEIGHTMAP
+
+void writePGM(int width, int height, unsigned char *data, std::string filename) {
+
+    std::ofstream file(filename.c_str());
+
+    file << "P5" << std::endl;
+    file << width << " " << height << std::endl;
+    file << "255" << std::endl;
+
+    file.write((char*) data, width * height * sizeof (unsigned char));
+
+    file.close();
+}
+#endif
+
 void Landscape::reloadTerrain() {
 
     glBindVertexArray(vao);
@@ -134,6 +148,24 @@ void Landscape::reloadTerrain() {
         }
     }
 
+#ifdef WRITE_HEIGHTMAP
+    unsigned char *_out = new unsigned char[(LANDSCAPE_SIZE + 2) * (LANDSCAPE_SIZE + 2)];
+    unsigned char *out = _out;
+
+    map = heightmap;
+
+    for (int row = -1; row <= LANDSCAPE_SIZE; row++) {
+        for (int col = -1; col <= LANDSCAPE_SIZE; col++) {
+            int i = (row + 1) * (LANDSCAPE_SIZE + 2) + col;
+            *out = heightmap[i]*255 / max;
+            out++;
+        }
+    }
+
+    writePGM((LANDSCAPE_SIZE + 2), (LANDSCAPE_SIZE + 2), _out, "heightmap.pgm");
+
+    delete _out;
+#endif
 
     Vertex *dataPtr = vboData;
     for (int row = 0; row <= LANDSCAPE_SIZE; row++) {
