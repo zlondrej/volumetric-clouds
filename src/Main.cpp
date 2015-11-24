@@ -48,10 +48,6 @@ Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL), landscape(NULL) {
 Main::~Main() {
     delete landscape;
     delete camera;
-
-    SDL_DestroyWindow(sdlWindow);
-    SDL_GL_DeleteContext(context);
-
 }
 
 void Main::run() {
@@ -132,6 +128,8 @@ void Main::init() {
 }
 
 void Main::onQuit() {
+    SDL_DestroyWindow(sdlWindow);
+    SDL_GL_DeleteContext(context);
     SDL_Quit();
 }
 
