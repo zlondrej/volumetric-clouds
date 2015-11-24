@@ -8,6 +8,7 @@
 #define LANDSCAPE_SIZE 250
 #define LANDSCAPE_SIZEF float(LANDSCAPE_SIZE)
 #define INDEX_COUNT (2 * (LANDSCAPE_SIZE + 1) * LANDSCAPE_SIZE + LANDSCAPE_SIZE)
+#define BASE_FREQUENCY 100
 
 using namespace pgp;
 
@@ -136,9 +137,9 @@ void Landscape::reloadTerrain() {
             z = ((col - 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
             y = 0;
 
-            y += parametrizedNoise(x, z, 4.0 / LANDSCAPE_SIZE, 2.0 / LANDSCAPE_SIZE, 50.0);
-            y += parametrizedNoise(x + 7769.0, z + 1103.0, 16.0 / LANDSCAPE_SIZE, 18.0 / LANDSCAPE_SIZE, 5.0);
-            y += parametrizedNoise(x - 356.0, z + 32776.0, 64.0 / LANDSCAPE_SIZE, 64.0 / LANDSCAPE_SIZE, 0.5);
+            y += parametrizedNoise(x, z, 4.0 / BASE_FREQUENCY, 2.0 / BASE_FREQUENCY, 50.0);
+            y += parametrizedNoise(x + 7769.0, z + 1103.0, 16.0 / BASE_FREQUENCY, 18.0 / BASE_FREQUENCY, 5.0);
+            y += parametrizedNoise(x - 356.0, z + 32776.0, 64.0 / BASE_FREQUENCY, 64.0 / BASE_FREQUENCY, 0.5);
 
             *map = y;
             map++;
