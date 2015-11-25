@@ -5,10 +5,11 @@
 
 #include "Landscape.hpp"
 
-#define LANDSCAPE_SIZE 250
+#define LANDSCAPE_SIZE 350
 #define LANDSCAPE_SIZEF float(LANDSCAPE_SIZE)
 #define INDEX_COUNT (2 * (LANDSCAPE_SIZE + 1) * LANDSCAPE_SIZE + LANDSCAPE_SIZE)
 #define BASE_FREQUENCY 100
+#define RESOLUTION 0.85
 
 using namespace pgp;
 
@@ -133,11 +134,11 @@ void Landscape::reloadTerrain() {
         for (int col = -1; col <= LANDSCAPE_SIZE; col++) {
             float x, y, z;
 
-            x = ((row - 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
-            z = ((col - 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
+            x = ((row - 1) - (LANDSCAPE_SIZEF / 2.0)) * RESOLUTION + pos.x;
+            z = ((col - 1) - (LANDSCAPE_SIZEF / 2.0)) * RESOLUTION + pos.z;
             y = 0;
 
-            y += parametrizedNoise(x, z, 4.0 / BASE_FREQUENCY, 2.0 / BASE_FREQUENCY, 50.0);
+            y += parametrizedNoise(x, z, 4.0 / BASE_FREQUENCY, 2.0 / BASE_FREQUENCY, 65.0);
             y += parametrizedNoise(x + 7769.0, z + 1103.0, 16.0 / BASE_FREQUENCY, 18.0 / BASE_FREQUENCY, 5.0);
             y += parametrizedNoise(x - 356.0, z + 32776.0, 64.0 / BASE_FREQUENCY, 64.0 / BASE_FREQUENCY, 0.5);
 
@@ -173,30 +174,27 @@ void Landscape::reloadTerrain() {
     for (int row = 0; row <= LANDSCAPE_SIZE; row++) {
         for (int col = 0; col <= LANDSCAPE_SIZE; col++) {
             Vertex *v = dataPtr++;
-            vec3 a, b, c, d;
+            vec3 a, b, c, d, g, h;
 
-            // Calculate position
-            v->position.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
-            v->position.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            v->position.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
-
-            // std::cout << "Position: (" << v->position.x << ", " << v->position.y << ", " << v->position.z << ")" << std::endl;
-
-            a.x = ((row) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
+            a.x = ((row) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.x;
             a.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col)];
-            a.z = ((col) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
+            a.z = ((col) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.z;
 
-            b.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
+            b.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.x;
             b.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col)];
-            b.z = ((col) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
+            b.z = ((col) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.z;
 
-            c.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
+            c.x = ((row + 1) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.x;
             c.y = heightmap[(row + 1) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            c.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
+            c.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.z;
 
-            d.x = ((row) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.x;
+            d.x = ((row) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.x;
             d.y = heightmap[(row) * (LANDSCAPE_SIZE + 2) + (col + 1)];
-            d.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) / 2.0f + pos.z;
+            d.z = ((col + 1) - (LANDSCAPE_SIZEF / 2)) * RESOLUTION + pos.z;
+
+            g = (a + b) * 0.5f;
+            h = (c + d) * 0.5f;
+            v->position = (g + h) * 0.5f;
 
             a = normalize(a - c);
             b = normalize(b - d);
