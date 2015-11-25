@@ -15,6 +15,7 @@ namespace pgp {
         Camera *camera;
         RenderShaderProgram renderProgram;
         GLuint vao, vbo, ebo;
+        GLuint fbo, colTex, depTex;
         GLint uView, uProjection;
         GLint aPosition, aNormal, aColor;
         GLenum polygonMode;
@@ -22,6 +23,20 @@ namespace pgp {
         float *heightmap;
     public:
         Landscape(Camera *camera);
+
+        ~Landscape();
+
+        inline GLuint getColorTexture() {
+            return colTex;
+        }
+
+        inline GLuint getDepthTexture() {
+            return depTex;
+        }
+
+        inline GLuint getFramebuffer() {
+            return fbo;
+        }
 
         virtual void render();
 

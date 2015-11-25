@@ -8,7 +8,7 @@
 #include "RegistrablesContainer.hpp"
 #include "Camera.hpp"
 #include "Landscape.hpp"
-
+#include "Clouds.hpp"
 
 namespace pgp {
 
@@ -19,6 +19,7 @@ namespace pgp {
         bool quitFlag = false;
         Camera *camera;
         Landscape *landscape;
+        Clouds *clouds;
 
     public:
         Main();

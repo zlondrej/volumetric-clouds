@@ -118,6 +118,7 @@ void Main::init() {
 
     camera = new Camera(sdlWindow);
     landscape = new Landscape(camera);
+    clouds = new Clouds(camera, landscape);
 
     registerEventListener(this);
 
@@ -125,6 +126,7 @@ void Main::init() {
     registerProcessor(camera);
 
     autoregister(landscape);
+    autoregister(clouds);
 }
 
 void Main::onQuit() {

@@ -6,7 +6,7 @@ CXXFLAGS=--std=c++11 -g -Wall -DGLM_FORCE_RADIANS $(shell pkg-config --cflags $(
 BUILDDIR=build
 BINDIR=bin
 OBJ=$(addprefix $(BUILDDIR)/, Main.o Camera.o Landscape.o BaseShaderProgram.o \
-    RenderShaderProgram.o RegistrablesContainer.o)
+    RenderShaderProgram.o RegistrablesContainer.o Clouds.o)
 
 RM=rm -rf
 MKDIR=mkdir

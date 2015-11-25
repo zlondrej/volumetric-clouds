@@ -43,6 +43,27 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     aNormal = glGetAttribLocation(program, "normal");
     aColor = glGetAttribLocation(program, "color");
 
+    ivec2 windowSize = camera->getWindowSize();
+
+    glGenTextures(1, &colTex);
+    glGenTextures(1, &depTex);
+
+    glBindTexture(GL_TEXTURE_2D, colTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowSize.x, windowSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+
+    glBindTexture(GL_TEXTURE_2D, depTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowSize.x, windowSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colTex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depTex, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
@@ -102,6 +123,18 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
 
     reloadTerrain();
 }
+
+Landscape::~Landscape() {
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteTextures(1, &colTex);
+    glDeleteTextures(1, &depTex);
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+    glDeleteVertexArrays(1, &vao);
+
+    delete heightmap;
+}
+
 
 #ifdef WRITE_HEIGHTMAP
 
@@ -264,6 +297,8 @@ float Landscape::interpolateCos(float a, float b, float factor) {
 
 void Landscape::render() {
 
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
     runRenderers();
 
     glUseProgram(renderProgram.getProgram());
@@ -301,6 +336,7 @@ void Landscape::render() {
     glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 
     glBindVertexArray(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void Landscape::step(float dt) {
