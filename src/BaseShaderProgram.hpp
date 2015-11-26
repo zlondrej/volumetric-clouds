@@ -27,6 +27,17 @@ namespace pgp {
                 program = 0;
             }
         }
+
+        inline void deleteShader(GLuint &shader) {
+
+            deleteProgram();
+
+            if (shader) {
+                glDeleteShader(shader);
+                shader = 0;
+            }
+        }
+
         static string getFileContents(string &filename);
         static GLuint createShaderFromSource(string &source, GLenum shaderType);
         static GLuint createShaderFromFile(string &filename, GLenum shaderType);

@@ -87,7 +87,7 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
     return EVT_IGNORED;
 }
 
-void Camera::step(float dt) {
+void Camera::step(float time, float delta) {
     vec3 direction;
     if (movement.x == 0 && movement.z == 0) {
         direction = movement;
@@ -102,7 +102,7 @@ void Camera::step(float dt) {
     }
 
     // TODO: Add speed coeficient
-    position += direction * dt * 15.0f;
+    position += direction * delta * 15.0f;
 }
 
 void Camera::render() {

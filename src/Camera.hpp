@@ -34,7 +34,7 @@ namespace pgp {
 
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
-        virtual void step(float dt);
+        virtual void step(float time, float delta);
 
         virtual void render();
 

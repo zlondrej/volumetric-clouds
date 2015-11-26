@@ -31,9 +31,9 @@ namespace pgp {
             processorList.push_back(processor);
         }
 
-        inline void runProcessors(float dt) {
+        inline void runProcessors(float time, float delta) {
             for (IProcessor *processor : processorList) {
-                processor->step(dt);
+                processor->step(time, delta);
             }
         }
 

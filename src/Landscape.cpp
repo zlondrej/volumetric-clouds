@@ -49,7 +49,7 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glGenTextures(1, &depTex);
 
     glBindTexture(GL_TEXTURE_2D, colTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowSize.x, windowSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, windowSize.x, windowSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
     glBindTexture(GL_TEXTURE_2D, depTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowSize.x, windowSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -126,10 +126,13 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
 
 Landscape::~Landscape() {
     glDeleteFramebuffers(1, &fbo);
+
     glDeleteTextures(1, &colTex);
     glDeleteTextures(1, &depTex);
+
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
+
     glDeleteVertexArrays(1, &vao);
 
     delete heightmap;
@@ -339,7 +342,7 @@ void Landscape::render() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Landscape::step(float dt) {
+void Landscape::step(float time, float delta) {
     if (distance(center, camera->getPosition()) > 15.0) {
         reloadTerrain();
         center = camera->getPosition();

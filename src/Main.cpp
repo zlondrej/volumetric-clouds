@@ -76,7 +76,7 @@ drop:
             }
         }
 
-        runProcessors(0.02);
+        runProcessors(0.0, 0.02);
 
         runRenderers();
 

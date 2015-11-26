@@ -6,6 +6,6 @@ namespace pgp {
 
     class IProcessor : virtual public IRegisterable {
     public:
-        virtual void step(float dt) = 0;
+        virtual void step(float time, float delta) = 0;
     };
 }

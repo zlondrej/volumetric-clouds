@@ -41,16 +41,6 @@ namespace pgp {
         }
     protected:
         virtual GLuint compile();
-
-        inline void deleteShader(GLuint &shader) {
-
-            deleteProgram();
-
-            if (shader) {
-                glDeleteShader(shader);
-                shader = 0;
-            }
-        }
     };
 
 }
