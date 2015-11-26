@@ -14,12 +14,17 @@ void main() {
 
     uint x = gl_GlobalInvocationID.x;
     uint y = gl_GlobalInvocationID.y;
-    //
-    // if(x >= screenSize.x || y >= screenSize.y) {
-    //   return;
-    // }
-    //
-    // uvec4 c = imageLoad(color, ivec2(x,y));
 
-    imageStore(color, ivec2(x,y), vec4(1));
+    if(x >= screenSize.x || y >= screenSize.y) {
+      // This is offscreen code
+      // There should not be such color (sort of pink) near borders.
+      imageStore(color, ivec2(x,y), vec4(1,0.3,0.5,1.0));
+      return;
+    }
+
+    ivec2 coords = ivec2(x,y);
+
+    vec4 c = imageLoad(color, coords);
+
+    imageStore(color, coords, c);
 }
