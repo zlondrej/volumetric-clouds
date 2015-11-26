@@ -14,9 +14,14 @@ namespace pgp {
         Camera *camera;
         Landscape *landscape;
         ComputeShaderProgram computeProgram;
+        RenderShaderProgram blitProgram;
         GLuint uColor, uDepth;
         GLuint uPosition, uTime;
         GLuint uScreenSize;
+
+        GLuint aBlitPosition;
+        GLuint uBlitTexture;
+        GLuint vao, vbo, ebo;
     public:
         Clouds(Camera *camera, Landscape *landscape);
         ~Clouds();
