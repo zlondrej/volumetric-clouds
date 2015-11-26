@@ -48,6 +48,7 @@ Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL), landscape(NULL) {
 Main::~Main() {
     delete landscape;
     delete camera;
+    delete clouds;
 }
 
 void Main::run() {
