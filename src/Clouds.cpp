@@ -82,7 +82,7 @@ void Clouds::render() {
 
     glUseProgram(computeProgram.getProgram());
 
-    glBindImageTexture(0, landscape->getColorTexture(), 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+    glBindImageTexture(0, landscape->getColorTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
     glUniform1i(uColor, 0);
 
     glBindImageTexture(1, landscape->getDepthTexture(), 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32F);
