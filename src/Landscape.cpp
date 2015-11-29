@@ -38,6 +38,7 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
 
     uProjection = glGetUniformLocation(program, "projection");
     uView = glGetUniformLocation(program, "view");
+    uEyePosition = glGetUniformLocation(program, "eyePosition");
 
     aPosition = glGetAttribLocation(program, "position");
     aNormal = glGetAttribLocation(program, "normal");
@@ -306,6 +307,25 @@ float Landscape::interpolateCos(float a, float b, float factor) {
     return a * (1 - factor) + b * factor;
 }
 
+mat4 Landscape::getProjectionMatrix() {
+
+      vec2 windowSize = camera->getWindowSize();
+      float fov = radians(75.0);
+      float aspect = windowSize.x / windowSize.y;
+      float near = 0.001;
+      float far = 1e5;
+
+      return glm::perspective(fov, aspect, near, far);
+}
+
+mat4 Landscape::getViewMatrix() {
+
+      vec3 cameraPosition = camera->getPosition();
+      vec3 atPosition = cameraPosition + camera->getViewVector();
+
+      return glm::lookAt(cameraPosition, atPosition, vec3(0, 1, 0));
+}
+
 void Landscape::render() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -320,23 +340,18 @@ void Landscape::render() {
     glClearColor(0.0, 0.7, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    vec3 cameraPosition = camera->getPosition();
-    vec3 atPosition = cameraPosition + camera->getViewVector();
+    mat4 viewMat = getViewMatrix();
+    mat4 projMat = getProjectionMatrix();
 
-    //    std::cout << "Eye: (" << cameraPosition.x << ", " << cameraPosition.y << ", " << cameraPosition.z << ")" << std::endl;
-    //    std::cout << "At: (" << atPosition.x << ", " << atPosition.y << ", " << atPosition.z << ")" << std::endl;
+    vec3 camPos = camera->getPosition();
 
-    vec2 windowSize = camera->getWindowSize();
-    float fov = radians(75.0);
-    float aspect = windowSize.x / windowSize.y;
-    float near = 0.001;
-    float far = 1e5;
-
-    mat4 viewMat = glm::lookAt(cameraPosition, atPosition, vec3(0, 1, 0));
-    mat4 projMat = glm::perspective(fov, aspect, near, far);
+    // std::cout << "Eye: (" << camPos.x << ", " << camPos.y << ", " << camPos.z << ")" << std::endl;
+    // std::cout << "At: (" << atPosition.x << ", " << atPosition.y << ", " << atPosition.z << ")" << std::endl;
 
     glUniformMatrix4fv(uView, 1, GL_FALSE, (GLfloat*) & viewMat);
     glUniformMatrix4fv(uProjection, 1, GL_FALSE, (GLfloat*) & projMat);
+
+    glUniform3fv(uEyePosition, 1, &camPos[0]);
 
     glBindVertexArray(vao);
 
