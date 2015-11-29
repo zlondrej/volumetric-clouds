@@ -4,10 +4,13 @@
 layout(rgba8) uniform image2D color;
 readonly layout(r32f) uniform image2D depth;
 
-uniform vec3 position;
+uniform vec3 eyePosition;
 uniform float time;
 
 uniform ivec2 screenSize;
+
+// Inverse view projection matrix
+uniform mat4 invVP;
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
@@ -22,9 +25,13 @@ void main() {
       return;
     }
 
-    ivec2 coords = ivec2(x,y);
+    vec2 fCoords = vec2(x,y) / vec2(screenSize);
+    ivec2 iCoords = ivec2(x,y);
 
-    vec4 c = imageLoad(color, coords);
+    vec3 rayDir = normalize((invVP*vec4(fCoords*2-1, 1, 1)).xyz);
 
-    imageStore(color, coords, c);
+    vec4 c = imageLoad(color, iCoords);
+    // c = c*0.5 + vec4(rayDir, 1)*0.5;
+
+    imageStore(color, iCoords, c);
 }

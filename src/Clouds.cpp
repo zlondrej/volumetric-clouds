@@ -1,5 +1,7 @@
 #include "Clouds.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 using namespace pgp;
 using namespace glm;
 
@@ -33,10 +35,12 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
     uColor = glGetUniformLocation(program, "color");
     uDepth = glGetUniformLocation(program, "depth");
 
-    uPosition = glGetUniformLocation(program, "position");
+    uPosition = glGetUniformLocation(program, "eyePosition");
     uTime = glGetUniformLocation(program, "time");
 
     uScreenSize = glGetUniformLocation(program, "screenSize");
+
+    uInvVP = glGetUniformLocation(program, "invVP");
 
     blitProgram.setVertexShaderFromFile(blitVertexShaderFile);
     blitProgram.setFragmenShaderFromFile(blitFragmentShaderFile);
@@ -80,6 +84,11 @@ void Clouds::render() {
     ivec2 ws = camera->getWindowSize();
     vec3 pos = camera->getPosition();
 
+    mat4 viewMat = landscape->getViewMatrix();
+    mat4 projMat = landscape->getProjectionMatrix();
+
+    mat4 invVPMat = glm::inverse(projMat*viewMat);
+
     glUseProgram(computeProgram.getProgram());
 
     glBindImageTexture(0, landscape->getColorTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
@@ -92,6 +101,8 @@ void Clouds::render() {
     glUniform1f(uTime, 0.0f);
 
     glUniform2iv(uScreenSize, 1, &ws[0]);
+
+    glUniformMatrix4fv(uInvVP, 1, GL_FALSE, glm::value_ptr(invVPMat));
 
     glDispatchCompute(DIV_ROUND_UP(ws.x, 8), DIV_ROUND_UP(ws.y, 8), 1);
 

@@ -18,6 +18,7 @@ namespace pgp {
         GLuint uColor, uDepth;
         GLuint uPosition, uTime;
         GLuint uScreenSize;
+        GLuint uInvVP;
 
         GLuint aBlitPosition;
         GLuint uBlitTexture;
