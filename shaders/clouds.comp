@@ -1,6 +1,5 @@
 #version 430
 
-
 layout(rgba8) uniform image2D color;
 readonly layout(r32f) uniform image2D depth;
 
@@ -11,6 +10,14 @@ uniform ivec2 screenSize;
 
 // Inverse view projection matrix
 uniform mat4 invVP;
+
+// Ray structure
+struct Ray{
+  vec3 origin;
+  vec3 direction;
+};
+
+vec4 clouds(Ray r);
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
@@ -31,7 +38,14 @@ void main() {
     vec3 rayDir = normalize((invVP*vec4(fCoords*2-1, 1, 1)).xyz);
 
     vec4 c = imageLoad(color, iCoords);
-    // c = c*0.5 + vec4(rayDir, 1)*0.5;
+
+    vec4 cl = clouds(Ray(eyePosition, rayDir));
+
+    c.xyz = c.xyz*(1-cl.w) + cl.xyz*cl.w;
 
     imageStore(color, iCoords, c);
+}
+
+vec4 clouds(Ray r) {
+  return vec4(1,1,1,0);
 }
