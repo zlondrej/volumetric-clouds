@@ -19,7 +19,7 @@ namespace pgp {
         GLuint fbo, colTex, depTex;
         GLuint rbo;
         GLint uView, uProjection;
-        GLint uEyePosition;
+        GLint uEyePosition, uSunPosition, uSunColor;
         GLint aPosition, aNormal, aColor;
         GLenum polygonMode;
         vec3 center;

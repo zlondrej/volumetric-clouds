@@ -18,6 +18,7 @@ namespace pgp {
         RenderShaderProgram blitProgram;
         GLuint uColor, uDepth;
         GLuint uPosition, uTime;
+        GLuint uSunPosition, uSunColor;
         GLuint uScreenSize;
         GLuint uInvVP;
 

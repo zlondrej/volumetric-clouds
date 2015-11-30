@@ -39,6 +39,8 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     uProjection = glGetUniformLocation(program, "projection");
     uView = glGetUniformLocation(program, "view");
     uEyePosition = glGetUniformLocation(program, "eyePosition");
+    uSunPosition = glGetUniformLocation(program, "sunPosition");
+    uSunColor = glGetUniformLocation(program, "sunColor");
 
     aPosition = glGetAttribLocation(program, "position");
     aNormal = glGetAttribLocation(program, "normal");

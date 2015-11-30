@@ -36,8 +36,10 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
     uDepth = glGetUniformLocation(program, "depth");
 
     uPosition = glGetUniformLocation(program, "eyePosition");
-    uTime = glGetUniformLocation(program, "time");
+    uSunPosition = glGetUniformLocation(program, "sunPosition");
+    uSunColor = glGetUniformLocation(program, "sunColor");
 
+    uTime = glGetUniformLocation(program, "time");
     uScreenSize = glGetUniformLocation(program, "screenSize");
 
     uInvVP = glGetUniformLocation(program, "invVP");

@@ -7,7 +7,9 @@ layout(rgba8) uniform image2D color;
 readonly layout(r32f) uniform image2D depth;
 
 uniform vec3 eyePosition;
-uniform float time;
+uniform vec3 sunPosition = vec3(0.0, 1e10, 0.0);
+uniform vec4 sunColor = vec4(1.0, 1.0, 1.0, 0.9); // a component is for intensity
+uniform float time = 0;
 
 uniform ivec2 screenSize;
 
@@ -58,9 +60,8 @@ void main() {
     vec4 c = imageLoad(color, iCoords);
     vec4 d = imageLoad(depth, iCoords);
 
-    vec4 cl = clouds(Ray(eyePosition, rayDir),d.x);
-
-    c.xyz = mix(c.xyz, cl.xyz, cl.w);
+    // vec4 cl = clouds(Ray(eyePosition, rayDir),d.x);
+    // c.xyz = mix(c.xyz, cl.xyz, cl.w);
 
     // 1D Noise
     // c = vec4(noise((iCoords.x + eyePosition.x)/32.0));
