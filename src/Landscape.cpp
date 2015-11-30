@@ -57,7 +57,7 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     glBindTexture(GL_TEXTURE_2D, depTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowSize.x, windowSize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, windowSize.x, windowSize.y, 0, GL_RED, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -68,8 +68,18 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, windowSize.x, windowSize.y);
+
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colTex, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depTex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, depTex, 0);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, drawBuffers);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -135,6 +145,8 @@ Landscape::Landscape(Camera *_camera) : camera(_camera), vao(0), vbo(0), ebo(0),
 
 Landscape::~Landscape() {
     glDeleteFramebuffers(1, &fbo);
+
+    glDeleteRenderbuffers(1, &rbo);
 
     glDeleteTextures(1, &colTex);
     glDeleteTextures(1, &depTex);
@@ -258,22 +270,11 @@ void Landscape::reloadTerrain() {
 }
 
 float Landscape::smoothNoise2D(float _x, float _y) {
-    int x0 = _x;
-    int y0 = _y;
+    int x0 = floor(_x);
+    int y0 = floor(_y);
 
-    int x1, y1;
-
-    if (_x >= 0) {
-        x1 = x0 + 1;
-    } else {
-        x1 = x0 - 1;
-    }
-
-    if (_y >= 0) {
-        y1 = y0 + 1;
-    } else {
-        y1 = y0 - 1;
-    }
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
 
     float rx = _x - x0;
     float ry = _y - y0;

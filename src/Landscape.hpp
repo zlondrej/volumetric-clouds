@@ -17,6 +17,7 @@ namespace pgp {
         RenderShaderProgram renderProgram;
         GLuint vao, vbo, ebo;
         GLuint fbo, colTex, depTex;
+        GLuint rbo;
         GLint uView, uProjection;
         GLint uEyePosition;
         GLint aPosition, aNormal, aColor;
