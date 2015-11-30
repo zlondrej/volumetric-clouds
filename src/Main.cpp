@@ -52,6 +52,10 @@ Main::~Main() {
 }
 
 void Main::run() {
+    uint32_t tics = SDL_GetTicks();
+    uint32_t lastFrameTics = tics;
+    float dt = 1e-10;
+    float t = 0.0;
 
     while (!quitFlag) {
         SDL_Event evt;
@@ -77,11 +81,19 @@ drop:
             }
         }
 
-        runProcessors(0.0, 0.02);
+        runProcessors(t, dt);
 
         runRenderers();
 
         SDL_GL_SwapWindow(sdlWindow);
+
+        tics = SDL_GetTicks();
+        // cout << "Ticks: " << tics << endl;
+        t = tics/1000.0f;
+        dt = (tics - lastFrameTics)/1000.0f;
+        // cout << "DT: " << dt << endl;
+        lastFrameTics = tics;
+
     }
 quit:
     onQuit();
