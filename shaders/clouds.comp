@@ -1,5 +1,8 @@
 #version 430
 
+#define UINT_MAX 4294967295U
+#define PI 3.141592653589793
+
 layout(rgba8) uniform image2D color;
 readonly layout(r32f) uniform image2D depth;
 
@@ -17,7 +20,22 @@ struct Ray{
   vec3 direction;
 };
 
-vec4 clouds(Ray r);
+vec4 clouds(Ray, float);
+
+float hash(int);
+float hash(ivec2);
+float hash(ivec3);
+float hash(ivec4);
+
+float noise(float);
+float noise(vec2);
+float noise(vec3);
+float noise(vec4);
+
+float mixCos(float, float, float);
+
+float mixQuad(mat2, vec2);
+float mixCube(mat2 m1, mat2 m2, vec3 p);
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
@@ -38,14 +56,168 @@ void main() {
     vec3 rayDir = normalize((invVP*vec4(fCoords*2-1, 1, 1)).xyz);
 
     vec4 c = imageLoad(color, iCoords);
+    vec4 d = imageLoad(depth, iCoords);
 
-    vec4 cl = clouds(Ray(eyePosition, rayDir));
+    vec4 cl = clouds(Ray(eyePosition, rayDir),d.x);
 
-    c.xyz = c.xyz*(1-cl.w) + cl.xyz*cl.w;
+
+    // c = vec4(noise(vec2(iCoords+eyePosition.xy)));
+    // vec4 c2 = vec4(noise(eyePosition/3.0));
+
+    // c.xyz = mix(c.xyz, c2.xyz, 0.7);
+    c.xyz = mix(c.xyz, cl.xyz, cl.w);
 
     imageStore(color, iCoords, c);
+    // imageStore(color, iCoords, vec4(d.xxx, 1.0));
+    // imageStore(color, iCoords, vec4(0,0,0, 1.0));
+    // if(d.x <= 0) {
+    //   c = vec4(1,0,0,1);
+    // }
+    // else {
+    //   c = vec4(0,0,d.x/120.0,1);
+    // }
+    // imageStore(color, iCoords, c);
 }
 
-vec4 clouds(Ray r) {
-  return vec4(1,1,1,0);
+vec4 clouds(Ray r, float depth) {
+  float step = 1.5;
+  float maxDist = (depth <= 0) ? 70.0 : min(depth,70.0);
+  vec4 cloud = vec4(1,1,1,0);
+  vec3 position;
+  float density = 0;
+
+  for(float f = step; f < maxDist; f += step) {
+    position = r.origin + (r.direction * f);
+
+    // density += noise(position)/64.0;
+    // density += noise(position/2.0)/32.0;
+    density += noise(position/32.0)/16.0;
+    density += noise(position/64.0)/8.0;
+    // density += noise(position/16.0)/4.0;
+    // density += noise(position/32.0)/2.0;
+    // density += noise(position/64.0)/1.0;
+  }
+
+  density = max(0.0, density/5.0 - 0.7);
+  cloud.a = density;
+
+  return cloud;
+}
+
+float hash(int q) {
+  q = (q * q) + 77433;
+  uint n = uint(q * 37);
+
+  return (((((n * 3342687 + 1144763) & 0xf2fcf7dd) - 77663544) * -113) * n) / float(UINT_MAX);
+}
+
+float hash(ivec2 q) {
+  int h = 0;
+  h += q.x * 79 + 74344645;
+  h += q.y * 317 - 6324441;
+  return hash(h);
+}
+
+float hash(ivec3 q) {
+  int h = 0;
+  h += q.x * 7779 + 764343;
+  h += q.y * 312217 - 63654641;
+  h += q.z * 124547 + 9963;
+  return hash(h);
+}
+
+float hash(ivec4 q) {
+  int h = 0;
+  h += q.x * 79 + 743;
+  h += q.y * 317 - 631;
+  h += q.z * 1247 + 9963;
+  h += q.w * -436 - 25;
+  return hash(h);
+}
+
+float noise(float q) {
+  int q0 = int(floor(q));
+  int q1 = q0 + 1;
+
+  float r = q - float(q0);
+
+  float a = hash(q0);
+  float b = hash(q1);
+
+  return mixCos(a, b, r);
+}
+
+float noise(vec2 q) {
+  ivec2 q0 = ivec2(floor(q));
+  ivec2 q1 = q0 + 1;
+
+  vec2 r = q - vec2(q0);
+
+  float a = hash(q0);
+  float b = hash(ivec2(q1.x, q0.y));
+  float c = hash(q1);
+  float d = hash(ivec2(q0.x, q1.y));
+
+  mat2 quad = mat2(vec2(a,b),vec2(c,d));
+
+  // return mixCos(ab, dc, r.y);
+  return mixQuad(quad, r);
+}
+
+float noise(vec3 q) {
+  ivec3 q0 = ivec3(floor(q));
+  ivec3 q1 = q0 + 1;
+
+  vec3 r = q - vec3(q0);
+
+  float a = hash(q0);
+  float b = hash(ivec3(q1.x, q0.y, q0.z));
+  float c = hash(ivec3(q1.xy, q0.z));
+  float d = hash(ivec3(q0.x, q1.y, q0.z));
+
+  mat2 abcdQ = mat2(vec2(a,b),vec2(c,d));
+
+  float e = hash(ivec3(q0.xy, q1.z));
+  float f = hash(ivec3(q1.x, q0.y, q1.z));
+  float g = hash(q1);
+  float h = hash(ivec3(q0.x, q1.yz));
+
+  mat2 efghQ = mat2(vec2(e,f),vec2(g,h));
+
+  // return mixCube(abcdQ, efghQ, q);
+  float abcd = mixQuad(abcdQ, vec2(q.xy));
+  float efgh = mixQuad(efghQ, vec2(q.xy));
+
+  return mixCos(abcd, efgh, r.z);
+}
+
+float noise(vec4 q) {
+
+  float a = noise(q.xyz + vec3(0,0, 314.159265));
+  float b = noise(q.xyz + vec3(0,0, -31415.9265));
+
+  float r = q.w - floor(q.w);
+
+  return mixCos(a, b, r);
+}
+
+float mixCos(float x, float y, float a) {
+    a = (1 - cos(a * PI)) * 0.5;
+
+    return mix(x,y,a);
+}
+
+
+float mixQuad(mat2 m, vec2 p) {
+  float ab = mixCos(m[0][0],m[0][1],p.x);
+  float dc = mixCos(m[1][0],m[1][1],p.x);
+
+  return mixCos(ab, dc, p.y);
+}
+
+float mixCube(mat2 m1, mat2 m2, vec3 p) {
+  float abcd = mixQuad(m1, p.xy);
+  float efgh = mixQuad(m2, p.xy);
+
+  return mixCos(abcd, efgh, p.z);
 }

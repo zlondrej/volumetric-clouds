@@ -72,7 +72,6 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 
 Clouds::~Clouds() {
 
-
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
 
