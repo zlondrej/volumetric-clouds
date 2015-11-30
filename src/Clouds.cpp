@@ -97,7 +97,7 @@ void Clouds::render() {
     glUniform1i(uDepth, 1);
 
     glUniform3fv(uPosition, 1, &pos[0]);
-    glUniform1f(uTime, 0.0f);
+    glUniform1f(uTime, time*10);
 
     glUniform2iv(uScreenSize, 1, &ws[0]);
 
@@ -131,4 +131,8 @@ void Clouds::render() {
     glBlitFramebuffer(0, 0, ws.x, ws.y, 0, 0, ws.x, ws.y, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
 #endif
+}
+
+void Clouds::step(float _time, float) {
+    time = _time;
 }
