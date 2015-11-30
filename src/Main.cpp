@@ -131,6 +131,15 @@ void Main::init() {
 }
 
 void Main::onQuit() {
+
+    delete landscape;
+    delete camera;
+    delete clouds;
+
+    landscape = NULL;
+    camera = NULL;
+    clouds = NULL;
+
     SDL_DestroyWindow(sdlWindow);
     SDL_GL_DeleteContext(context);
     SDL_Quit();
