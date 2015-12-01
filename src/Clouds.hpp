@@ -5,16 +5,17 @@
 
 #include "IRenderer.hpp"
 #include "IProcessor.hpp"
+#include "IEventListener.hpp"
 #include "Camera.hpp"
 #include "Landscape.hpp"
 #include "ComputeShaderProgram.hpp"
 
 namespace pgp {
 
-    class Clouds : public IRenderer, public IProcessor {
+    class Clouds : public IRenderer, public IProcessor, public IEventListener {
         Camera *camera;
         Landscape *landscape;
-        ComputeShaderProgram computeProgram;
+        ComputeShaderProgram *computeProgram;
         RenderShaderProgram blitProgram;
         GLuint uColor, uDepth;
         GLuint uPosition, uTime;
@@ -33,9 +34,10 @@ namespace pgp {
 
         virtual void render();
         virtual void step(float, float);
+        virtual IEventListener::EventResponse onEvent(SDL_Event *evt);
 
     private:
-
+        void initComputeUniforms(GLuint program);
     };
 
 }

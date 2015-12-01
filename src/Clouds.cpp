@@ -1,6 +1,8 @@
 #include "Clouds.hpp"
+#include "Exceptions.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
 
 using namespace pgp;
 using namespace glm;
@@ -20,29 +22,22 @@ static GLuint indicies[] = {
     0, 1, 2, 3
 };
 
+static string computeShaderFile("./shaders/clouds.comp");
+static string blitVertexShaderFile("./shaders/blit.vert");
+static string blitFragmentShaderFile("./shaders/blit.frag");
+
 Clouds::Clouds(Camera *cam, Landscape *land) {
-    string computeShaderFile("./shaders/clouds.comp");
-    string blitVertexShaderFile("./shaders/blit.vert");
-    string blitFragmentShaderFile("./shaders/blit.frag");
 
     camera = cam;
     landscape = land;
 
-    computeProgram.setComputeShaderFromFile(computeShaderFile);
+    computeProgram = new ComputeShaderProgram();
 
-    GLuint program = computeProgram.getProgram();
+    computeProgram->setComputeShaderFromFile(computeShaderFile);
 
-    uColor = glGetUniformLocation(program, "color");
-    uDepth = glGetUniformLocation(program, "depth");
+    GLuint program = computeProgram->getProgram();
 
-    uPosition = glGetUniformLocation(program, "eyePosition");
-    uSunPosition = glGetUniformLocation(program, "sunPosition");
-    uSunColor = glGetUniformLocation(program, "sunColor");
-
-    uTime = glGetUniformLocation(program, "time");
-    uScreenSize = glGetUniformLocation(program, "screenSize");
-
-    uInvVP = glGetUniformLocation(program, "invVP");
+    initComputeUniforms(program);
 
     blitProgram.setVertexShaderFromFile(blitVertexShaderFile);
     blitProgram.setFragmenShaderFromFile(blitFragmentShaderFile);
@@ -72,12 +67,30 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 
 }
 
+void Clouds::initComputeUniforms(GLuint program) {
+  uColor = glGetUniformLocation(program, "color");
+  uDepth = glGetUniformLocation(program, "depth");
+
+  uPosition = glGetUniformLocation(program, "eyePosition");
+  uSunPosition = glGetUniformLocation(program, "sunPosition");
+  uSunColor = glGetUniformLocation(program, "sunColor");
+
+  uTime = glGetUniformLocation(program, "time");
+  uScreenSize = glGetUniformLocation(program, "screenSize");
+
+  uInvVP = glGetUniformLocation(program, "invVP");
+
+
+}
+
 Clouds::~Clouds() {
 
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
 
     glDeleteVertexArrays(1, &vao);
+
+    delete computeProgram;
 }
 
 void Clouds::render() {
@@ -90,7 +103,7 @@ void Clouds::render() {
 
     mat4 invVPMat = glm::inverse(projMat*viewMat);
 
-    glUseProgram(computeProgram.getProgram());
+    glUseProgram(computeProgram->getProgram());
 
     glBindImageTexture(0, landscape->getColorTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
     glUniform1i(uColor, 0);
@@ -137,4 +150,33 @@ void Clouds::render() {
 
 void Clouds::step(float _time, float) {
     time = _time;
+}
+
+IEventListener::EventResponse Clouds::onEvent(SDL_Event *evt) {
+    if (evt->type == SDL_KEYDOWN) {
+        SDL_KeyboardEvent *e = &evt->key;
+
+        if (e->keysym.sym == SDLK_r) {
+            ComputeShaderProgram *p = new ComputeShaderProgram;
+
+            try {
+                p->setComputeShaderFromFile(computeShaderFile);
+
+                GLuint program = computeProgram->getProgram();
+                delete computeProgram;
+                computeProgram = p;
+                initComputeUniforms(program);
+
+                std::cerr << "Cloud shader reloaded" << std::endl;
+            }
+            catch (Exception &e) {
+                std::cerr << e.getMessage() << std::endl;
+                delete p;
+            }
+            
+            return EVT_PROCESSED;
+        }
+    }
+
+    return EVT_IGNORED;
 }
