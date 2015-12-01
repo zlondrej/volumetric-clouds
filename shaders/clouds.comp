@@ -37,7 +37,7 @@ float noise(vec4);
 float mixCos(float, float, float);
 
 float mixQuad(mat2, vec2);
-float mixCube(mat2 m1, mat2 m2, vec3 p);
+float mixCube(mat2, mat2, vec3);
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 void main() {
