@@ -60,8 +60,9 @@ void main() {
     vec4 c = imageLoad(color, iCoords);
     vec4 d = imageLoad(depth, iCoords);
 
-    // vec4 cl = clouds(Ray(eyePosition, rayDir),d.x);
-    // c.xyz = mix(c.xyz, cl.xyz, cl.w);
+    vec4 cl = clouds(Ray(eyePosition, rayDir),d.x);
+
+    c.rgb = mix(c.rgb, cl.rgb, cl.a);
 
     // 1D Noise
     // c = vec4(noise((iCoords.x + eyePosition.x)/32.0));
@@ -96,8 +97,8 @@ vec4 clouds(Ray r, float depth) {
     // density += noise(position/64.0)/1.0;
   }
 
-  density = max(0.0, density/2.0*step - 0.5);
-  cloud.a = density;
+  density = max(0.0, density/2.0*step - 1.3);
+  cloud.a = clamp(density, 0.0, 1.0);
 
   return cloud;
 }
