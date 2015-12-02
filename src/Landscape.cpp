@@ -343,6 +343,9 @@ void Landscape::render() {
     glClearColor(0.0, 0.7, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    float depClear = 1e15;
+    glClearTexImage(depTex, 0, GL_RED, GL_FLOAT, &depClear);
+
     mat4 viewMat = getViewMatrix();
     mat4 projMat = getProjectionMatrix();
 

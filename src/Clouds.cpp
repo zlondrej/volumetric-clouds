@@ -7,6 +7,8 @@
 using namespace pgp;
 using namespace glm;
 
+#define DOWNSCALE 4
+
 //#define USE_QUAD_BLIT
 
 #define DIV_ROUND_UP(x,d) ((x + d - 1)/d)
@@ -37,7 +39,25 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 
     GLuint program = computeProgram->getProgram();
 
+    ivec2 windowSize = camera->getWindowSize()/DOWNSCALE;
+
     initComputeUniforms(program);
+
+    glGenTextures(1, &cloudTexture);
+    glBindTexture(GL_TEXTURE_2D, cloudTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowSize.x, windowSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenTextures(1, &cloudDepthTexture);
+    glBindTexture(GL_TEXTURE_2D, cloudDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, windowSize.x, windowSize.y, 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     blitProgram.setVertexShaderFromFile(blitVertexShaderFile);
     blitProgram.setFragmenShaderFromFile(blitFragmentShaderFile);
@@ -68,19 +88,18 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 }
 
 void Clouds::initComputeUniforms(GLuint program) {
-  uColor = glGetUniformLocation(program, "color");
-  uDepth = glGetUniformLocation(program, "depth");
+  uColor = glGetUniformLocation(program, "colorIm");
+  uDepth = glGetUniformLocation(program, "depthIm");
+  uCloud = glGetUniformLocation(program, "cloudIm");
+  uCloudDepth = glGetUniformLocation(program, "cloudDepthIm");
 
   uPosition = glGetUniformLocation(program, "eyePosition");
   uSunPosition = glGetUniformLocation(program, "sunPosition");
   uSunColor = glGetUniformLocation(program, "sunColor");
 
   uTime = glGetUniformLocation(program, "time");
-  uScreenSize = glGetUniformLocation(program, "screenSize");
 
   uInvVP = glGetUniformLocation(program, "invVP");
-
-
 }
 
 Clouds::~Clouds() {
@@ -90,12 +109,16 @@ Clouds::~Clouds() {
 
     glDeleteVertexArrays(1, &vao);
 
+    glDeleteTextures(1, &cloudTexture);
+    glDeleteTextures(1, &cloudDepthTexture);
+
     delete computeProgram;
 }
 
 void Clouds::render() {
 
     ivec2 ws = camera->getWindowSize();
+    ivec2 dws = ws/DOWNSCALE;
     vec3 pos = camera->getPosition();
 
     mat4 viewMat = landscape->getViewMatrix();
@@ -111,14 +134,18 @@ void Clouds::render() {
     glBindImageTexture(1, landscape->getDepthTexture(), 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32F);
     glUniform1i(uDepth, 1);
 
+    glBindImageTexture(2, cloudTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+    glUniform1i(uCloud, 2);
+
+    glBindImageTexture(3, cloudDepthTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32F);
+    glUniform1i(uCloudDepth, 3);
+
     glUniform3fv(uPosition, 1, &pos[0]);
     glUniform1f(uTime, time*10);
 
-    glUniform2iv(uScreenSize, 1, &ws[0]);
-
     glUniformMatrix4fv(uInvVP, 1, GL_FALSE, glm::value_ptr(invVPMat));
 
-    glDispatchCompute(DIV_ROUND_UP(ws.x, 8), DIV_ROUND_UP(ws.y, 8), 1);
+    glDispatchCompute(DIV_ROUND_UP(dws.x, 16), DIV_ROUND_UP(dws.y, 4), 1);
 
 #ifdef USE_QUAD_BLIT
 
@@ -173,7 +200,7 @@ IEventListener::EventResponse Clouds::onEvent(SDL_Event *evt) {
                 std::cerr << e.getMessage() << std::endl;
                 delete p;
             }
-            
+
             return EVT_PROCESSED;
         }
     }

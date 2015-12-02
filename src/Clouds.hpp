@@ -17,11 +17,12 @@ namespace pgp {
         Landscape *landscape;
         ComputeShaderProgram *computeProgram;
         RenderShaderProgram blitProgram;
-        GLuint uColor, uDepth;
+        GLuint uColor, uDepth, uCloud, uCloudDepth;
         GLuint uPosition, uTime;
         GLuint uSunPosition, uSunColor;
-        GLuint uScreenSize;
         GLuint uInvVP;
+
+        GLuint cloudTexture, cloudDepthTexture;
 
         GLuint aBlitPosition;
         GLuint uBlitTexture;
