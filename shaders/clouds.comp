@@ -17,13 +17,15 @@ uniform float time = 0;
 uniform mat4 invVP;
 
 float lowerLayer = 75;
-float upperLayer = 120;
+float upperLayer = 175;
+float layerEase = 25;
+float layerOffset = 7.5;
 
 float maxDistance = 750;
-float distanceEase = 700;
+float distanceEase = 150;
 int stepCount = 150;
 
-float timeFactor = 0.12;
+float timeFactor = 0.012;
 
 // Ray structure
 struct Ray{
@@ -32,6 +34,7 @@ struct Ray{
 };
 
 vec4 marchClouds(Ray, inout float);
+float marchBrightness(vec4);
 
 float hash(int);
 float hash(ivec2);
@@ -47,6 +50,8 @@ float mixCos(float, float, float);
 
 float mixQuad(mat2, vec2);
 float mixCube(mat2, mat2, vec3);
+
+float cloudMap(vec4);
 
 /**
  * Calculates distance in which ray has given height.
@@ -125,8 +130,8 @@ void main() {
             a = mix(cloudSamples[0], cloudSamples[1], j/float(downsample));
             b = mix(cloudSamples[1], cloudSamples[2], j/float(downsample));
 
-            c = mix(a, b, i/float(downsample));
-            // c = cloudSamples[0];
+            // c = mix(a, b, i/float(downsample));
+            c = cloudSamples[0];
 
 
             // e = mix(cloudDepthSamples[0], cloudDepthSamples[1], j/float(downsample));
@@ -154,7 +159,7 @@ vec4 marchClouds(Ray r, inout float depth) {
     vec3 position = r.origin;
     float closeDistance, farDistance;
     float alpha = 0.0;
-    float brighness = 1.0;
+    float brightness = 1;
     float step;
     float t = time * timeFactor;
 
@@ -182,36 +187,88 @@ vec4 marchClouds(Ray r, inout float depth) {
     }
 
 
-    step = 0.1; //(closeDistance - farDistance) / stepCount;
+    step = 1.7; //(closeDistance - farDistance) / stepCount;
 
     depth = closeDistance;
 
-    float alphaMod = clamp((maxDistance - depth) / distanceEase, 0.0, 1.0);
+    float alphaMod = clamp((maxDistance - depth) / (distanceEase), 0.0, 1.0);
 
-    vec3 initPos = r.origin + (r.direction * closeDistance);
+    // vec3 initPos = r.origin + (r.direction * closeDistance);
+    vec3 initPos = r.origin;
 
-    vec3 offA, offB, offC, offD;
-    offA = vec3(31.54, 746.32, 87.03);
-    offB = vec3(764.321, 87460.354, 3543.798);
-    offC = vec3(7.36, 999.97, 73.37);
-    offD = offA - offB * offC;
+    bool thresholdPassed = false;
     for(int i = 0; i < stepCount; i++) {
         position = initPos + (r.direction * (step * i));
 
-        alpha += noise(vec4(position + offA,t)/256.0);
-        alpha += noise(vec4(position + offB,t)/128.0);
-        alpha += noise(vec4(position + offC,t)/64.0);
-        alpha += noise(vec4(position + offD,t)/32.0);
+        if(position.y < lowerLayer || position.y > upperLayer) {
+            continue;
+        }
 
-        alpha /= 4.0 * 0.50;
-        alpha -= 0.35;
+        alpha += cloudMap(vec4(position, t));
+
+        if ((!thresholdPassed) && alpha > 0.15) {
+            depth = step * i;
+            brightness = marchBrightness(vec4(position, t));
+            thresholdPassed = true;
+        }
 
         if(alpha >= 1.0) {
             break;
         }
+        // step += 0.5;
     }
 
-    return clamp(vec4(brighness, brighness, brighness, alpha*alphaMod), 0.0, 1.0);
+    brightness = clamp(brightness + 0.15*(1-alpha), 0.0, 1.0);
+
+    return clamp(vec4(brightness, brightness, brightness, alpha*alphaMod), 0.0, 1.0);
+}
+
+float marchBrightness(vec4 p) {
+    // sunPosition
+    Ray r;
+    r.origin = p.xyz;
+    r.direction = normalize(sunPosition.xyz - r.origin);
+
+    float closeDistance, farDistance;
+    float distToUpper = distanceToLayer(r, upperLayer);
+    float distToLower = distanceToLayer(r, lowerLayer);
+
+    float step = 1.0;
+    float brightness = 1.0;
+    float density;
+
+    vec3 position;
+    for(float t = max(0.0, distToLower); t < distToUpper; t += step) {
+        position = r.origin + (r.direction * t);
+
+        if(position.y > upperLayer) {
+            break;
+        }
+
+        density = cloudMap(vec4(position, t));
+
+        brightness -= density*0.05;
+    }
+
+    return brightness;
+}
+
+float cloudMap(vec4 p) {
+    vec4 q = p + vec4(0.7, 0.0, 0.44, 0.0)*p.w*25.0;
+    float upperEase, lowerEase, ease;
+    float f;
+      f  = 0.25000*noise( q / 256.0 );
+      f += 0.35000*noise( q / 128.0 );
+      f += 0.22500*noise( q / 64.0 );
+      f -= 0.22500*noise( q / 48.0 ) / 2.0;
+      f += 0.06250*noise( q / 32.0 );
+
+    upperEase = clamp((upperLayer - layerOffset - q.y) / (layerEase), 0.0, 1.0);
+    lowerEase = clamp((q.y - lowerLayer - layerOffset) / (layerEase), 0.0, 1.0);
+
+    ease = 1 - abs(upperEase - lowerEase);
+
+    return clamp( f*1.35 - 0.5, 0.0, 1.0 ) * ease;
 }
 
 float hash(int q) {
