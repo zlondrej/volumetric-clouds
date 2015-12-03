@@ -218,7 +218,8 @@ vec4 marchClouds(Ray r, inout float depth) {
         // step += 0.5;
     }
 
-    brightness = clamp(brightness + 0.15*(1-alpha), 0.0, 1.0);
+    brightness = clamp(brightness + (1-alpha)*(1-alpha), 0.0, 1.0);
+
 
     return clamp(vec4(brightness, brightness, brightness, alpha*alphaMod), 0.0, 1.0);
 }
@@ -236,18 +237,17 @@ float marchBrightness(vec4 p) {
     float step = 1.0;
     float brightness = 1.0;
     float density;
+    float decrease = 0.45;
 
     vec3 position;
     for(float t = max(0.0, distToLower); t < distToUpper; t += step) {
         position = r.origin + (r.direction * t);
 
-        if(position.y > upperLayer) {
-            break;
-        }
-
         density = cloudMap(vec4(position, t));
 
-        brightness -= density*0.05;
+        brightness -= decrease*density;
+
+        decrease *= 0.95;
     }
 
     return brightness;
