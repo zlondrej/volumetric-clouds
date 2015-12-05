@@ -193,11 +193,11 @@ vec4 marchClouds(Ray r, inout float depth) {
 
     float alphaMod = clamp((maxDistance - depth) / (distanceEase), 0.0, 1.0);
 
-    // vec3 initPos = r.origin + (r.direction * closeDistance);
+    int fastStep = int(ceil(closeDistance/step));
     vec3 initPos = r.origin;
 
     bool thresholdPassed = false;
-    for(int i = 0; i < stepCount; i++) {
+    for(int i = fastStep; i < stepCount; i++) {
         position = initPos + (r.direction * (step * i));
 
         if(position.y < lowerLayer || position.y > upperLayer) {
