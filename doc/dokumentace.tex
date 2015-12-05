@@ -10,7 +10,7 @@
 \usepackage{graphicx}
 \usepackage[czech, english]{babel}
 \selectlanguage{czech}
-\usepackage{subfig}                % \subfloat
+% \usepackage{subfig}                % \subfloat
 \usepackage{color}
 \usepackage{url}
 \inputencoding{utf8}
@@ -19,13 +19,15 @@
 \usepackage[all]{hypcap}
 \hypersetup{colorlinks=false, linkbordercolor=1 1 1, citebordercolor=1 1 1}
 \usepackage[right]{lineno}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{subcaption}
 \renewcommand\linenumberfont{\normalfont\tiny\color{blue}}
 
 
 \title{Zobrazování volumetrických mraků v pohybu}
 \author{Ondřej Janošík <xjanos12@stud.fit.vutbr.cz>}
 \date{\today}
-
 
 %--------------------------------------------------------------------------------
 
@@ -36,56 +38,162 @@
 
 \section{Úvod}
 
-Tady by mělo být napsané o čem práce je a k čemu to je dobré. Například: Tato práce se zabývá akcelerací
-raytracingu na CUDA. Raytracing se používá ve fotorealistické grafice a herní grafice. CUDA umožňuje
-akceleraci ...
+V~počítačové grafice se ve většině případů kamera nachází pod vrstvou mraků
+a zejména pak ve hrách bývají mraky součástí skyboxu,
+či simulovány pomocí billboardů. To ovšem nepůsobí dobrým dojmem například
+při průletu mraky. Pro tento případ je třeba využít volumetrických dat a právě
+zobrazování volumetrických procedurálně generovaných mraků je náplní této práce.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Teorie}
 
-Tady v té kapitole je napsané jak to funguje. Ideálně nějaka ta rovnice, např. \ref{moje-rovnice}. Potom by
-tady měla byt uvedena literatura, ze které bylo čerpano, například "Metody sledování paprsku jsou popsané v \cite{Cox2008} \cite{zemcik2006}"
+V této kapitole popisuji techniky, které lze využít při renderování
+volumetrických dat a také způsob generování perlinova šumu.
 
+\subsection{Perlinův šum}
+
+Různé varianty šumu se používají v grafice zejména k~dosažení různých efektů,
+jako například oheň, kouř, vlnění vodní hladiny nebo také pro generování
+terénů či právě mraků a to volumetrických, nebo jen dvourozměrných billboardů.
+
+\textit{Perlinův šum} je jednoduše řečeno suma šumů o různých amplitudách
+a frekvencích.
+Případně lze mezi jednotlivými složkami také zavést fázový posun.
+
+Základem pro vytvoření perlinova šumu je samotná šumová funkce.
+Ta uvnitř ukrývá jednoduchou hashovací funkci.
+Hashovací funkce ovšem pracuje pouze s~celými čísly a pro naše potřeby je třeba
+šum generovat z~čísel s~plovoucí desetinnou čárkou. Za tímto účelem si získáme
+hodnotu šumu v~okolních celočíselných hranicích a na základě desetinné části
+interpolujeme (\ref{eq:floating-noise}).
+Lze využít například jednoduché lineární interpolace (\ref{eq:mix-lin}),
+nebo pak lehce pokročilejší kosinovy interpolace (\ref{eq:mix-cos}), která
+má oproti linerání interpolaci hladší průběh.
 
 \begin{equation}
-  \label{moje-rovnice}
-  c = a + b
+  \begin{aligned}
+    noise(x) & = mix(hash(n_1), hash(n_2), fract(x)) \\
+    % where
+    n_1 & = floor(x) \\
+    n_2 & = n_1 + 1 \\
+  \end{aligned}
+  \label{eq:floating-noise}
 \end{equation}
 
-Na obrázku \ref{fig:obrazek} je ukázané jak to funguje. Nějaké schémátko pipeline..
+\begin{equation}
+    mixLinear(a, b, x) = a \cdot (1 - x) + b \cdot x
+  \label{eq:mix-lin}
+\end{equation}
 
-\begin{figure}[htb]
-  \centering
-  \includegraphics[width=5cm,keepaspectratio]{obrazek.jpg}
-  \caption{Nějaký ten diagram, třeba převzaný z \cite{wikipedia}}
-  \label{fig:obrazek}
-\end{figure}
+\begin{equation}
+  \begin{aligned}
+    mixCos(a, b, x) & = a \cdot (1 - x') + b \cdot x' \\
+    x' & = \frac{1 - cos(x \cdot \pi)}{2}
+  \end{aligned}
+  \label{eq:mix-cos}
+\end{equation}
+
+Pro získání vzorku $N$-rozměrného šumu je pak třeba získat $2^N$ vzorků
+a následně provést $2^N-1$ interpolací. Složitost výpočtu je tedy $O(2^N)$.
+Samotný výpočet perlinova šumu pak popisuje
+rovnice \ref{eq:perlin-sum}.
+
+\begin{equation}
+  \begin{aligned}
+    perlin(\vec{x}) & = \sum^{n}_{i=0} noise(\vec{x} \cdot f_i) \cdot A_i \\
+    n & \in \mathbb{N} \\
+    f_i, A_i & \in \mathbb{R} \\
+  \end{aligned}
+  \label{eq:perlin-sum}
+\end{equation}
+
+\subsection{Ray marching}
+
+\textit{Ray marching} nebo také \textit{volumetric ray tracing} je obrazová
+metoda vykreslování volumetrických (objemových) dat.
+Objemové tělěso je vhodné nějakým způsobem vymezit. Pro tyto účely
+lze použít například \textit{bounding box}.
+
+Zásadní rozdíl oproti klasickému \textit{ray tracingu} je v~tom, že pokud
+paprsek narazí na těleso, tak se nezastaví, ale může prostupovat skrze těleso,
+většinou s~konstatním krokem, což není podmínkou.
+Při tomto průchodu skrze těleso se akumulují různé vlastnosti
+jako barva nebo hustota a ty se pak mísí (blendují) do výsledné barvy pixelu
+spolu s~pozadím.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Popis řešení}
 
-Tady stručně popište, jakým způsobem jste prakticky projekt řešili. Uveďte zejména použité
-technologie a algoritmy. Zaměřte se hlavně na zajímavé a důležité části implementace a také na
-problémy, které jste řešili. Není nutné popisovat každou třídu.
+% Tady stručně popište, jakým způsobem jste prakticky projekt řešili. Uveďte zejména použité
+% technologie a algoritmy. Zaměřte se hlavně na zajímavé a důležité části implementace a také na
+% problémy, které jste řešili. Není nutné popisovat každou třídu.
+%
+% Např. uveďte, jak jste matematický popis z předchozí kapitoly implementovali prakticky.
 
-Např. uveďte, jak jste matematický popis z předchozí kapitoly implementovali prakticky.
+V rámci řešení jsem využil ray marching s podvzorkováním $\frac{1}{8}$,
+compute shader a 2D a 4D perlinův šum.
+V~první fázi jsem vykreslil oblohu bez mraků a terén. Do textury jsem
+si uložil jednak barvu, tak i~vzdálenost fragmentů od pozice kamery. V~tomto
+případě se však nejedná o~standardní depth buffer\footnote{
+Depth buffer neukládá vzdálenost fragmentu ke~kameře, nýbrž
+nejkratší vzdálenost k~rovině kamery. Tento fakt může vést k~nežádoucím efektům
+při pohybu kamery.}.
+V~následující fázi jsem spustil compute shader s~podvorkováním kvůli snížení
+výpočetní náročnosti. Samotná metoda vykreslení je popsána v~kapiloe \ref{sec:cloud-rendering}.
+
+\subsection{Terén a volumetrická reprezentace mraků}
+
+Při implementaci jsem použil perlinův šum rovnou dvakrát.
+Poprvé jako výškovou mapu pro generování terénu, podruhé pro samotné mraky.
+Bylo třeba implementovat 2D a 4D\footnote{Čtvrtou složkou 4D šumu je čas.},
+perlinův šum.
+
+V~případě 2D šumu jsem si vystačil s~\textit{bikosinovou interpolací}\footnote{
+Bikosinova interpolace je podobná interpolaci bilineární, místo
+linerání interpolace však používá interpolaci kosinovu (\ref{eq:mix-cos}).
+}
+která je implementačně relativně jednoduchá. Na~obrázku \ref{fig:interpolation}
+popisující $N$-rozměrnou linerání/kosinovu interpolaci si lze všimnout,
+že interpolaci v~$N$-rozměrném prostoru je možné vyjádřit jako dvě interpolace
+v prostoru o~jednu dimenzi nižším a jednu lineární/kosinovu interpolaci.
+Pro generování mraků mi pak posloužil 4D perlinův šum.
+
+\begin{figure}
+  \centering
+  \subcaptionbox*{Princip bilineární (2D) interpolace.}{
+      \includegraphics[width=6cm,keepaspectratio]{img/bi-interpolation}
+  }
+  \hspace{0.5cm}
+  \subcaptionbox*{Princip trilineární (3D) interpolace.}{
+      \includegraphics[width=6cm,keepaspectratio]{img/tri-interpolation}
+  }  \\
+  \vspace{2cm}
+  \subcaptionbox*{Princip quadrilineární (4D) interpolace.}{
+      \includegraphics[width=12cm,keepaspectratio]{img/quadri-interpolation}
+  }
+  \caption{Porovnání $N$-rozměrné linerární/kosinovy interpolace.}
+  \label{fig:interpolation}
+\end{figure}
+
+\subsection{Vykreslení mraků} \label{sec:cloud-rendering}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Vyhodnocení}
 
-Tady by mělo být napsané jak to funguje. Protože se jedná o počítačovou grafiku nebo
-vidění, tak by tady měl byt screenshot, ze ktereho bude poznat jak to funguje.
-K tomu by měla být idealně tabulka s vyhodnocením jak přesně/rychle to funguje.
+% Tady by mělo být napsané jak to funguje. Protože se jedná o počítačovou grafiku nebo
+% vidění, tak by tady měl byt screenshot, ze ktereho bude poznat jak to funguje.
+% K tomu by měla být idealně tabulka s vyhodnocením jak přesně/rychle to funguje.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Závěr}
 
-Tady by mělo být stručně napsané jak to funguje.
+% Tady by mělo být stručně napsané jak to funguje.
 
 
 \bibliographystyle{alpha}
