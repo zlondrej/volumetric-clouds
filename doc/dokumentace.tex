@@ -137,8 +137,8 @@ compute shader a 2D a 4D perlinův šum.
 V~první fázi jsem vykreslil oblohu bez mraků a terén. Do textury jsem
 si uložil jednak barvu, tak i~vzdálenost fragmentů od pozice kamery. V~tomto
 případě se však nejedná o~standardní depth buffer\footnote{
-Depth buffer neukládá vzdálenost fragmentu ke~kameře, nýbrž
-nejkratší vzdálenost k~rovině kamery. Tento fakt může vést k~nežádoucím efektům
+Depth buffer neukládá vzdálenost fragmentu od kamery, nýbrž
+nejkratší vzdálenost od roviny kamery. To může vést k~nežádoucím efektům
 při pohybu kamery.}.
 V~následující fázi jsem spustil compute shader s~podvorkováním kvůli snížení
 výpočetní náročnosti. Samotná metoda vykreslení je popsána v~kapiloe \ref{sec:cloud-rendering}.
@@ -179,7 +179,64 @@ Pro generování mraků mi pak posloužil 4D perlinův šum.
 
 \subsection{Vykreslení mraků} \label{sec:cloud-rendering}
 
+U~ray marchingu začínáme stejně jako v~případě ray tracingu a to projekcí
+paprsku z~prostoru obrazovky do prostoru scény s~použitím inverzní
+view--projekční matice, což je popsáno v~rovnici \ref{eq:unprojection}.
+$\vec{r}$ je normalizovaný směrový vektor paprsku a $x$, $y$ jsou
+normalizované souřadnice zařízení (\textit{NDC}).
 
+\begin{equation}
+  \vec{r} = normalize( (P \cdot V)^{-1} \cdot (x \cdot 2 - 1, y \cdot 2 - 1, 1, 1))
+  \label{eq:unprojection}
+\end{equation}
+
+Vrstva mraků je vymezena dvěma rovinami rovnoběžnými s~rovinou $y$.
+Při projekci paprsku pak teoreticky může dojít k~devíti různým případům
+zobrazených na obrázku \ref{fig:camera-possibilities}.
+V~mém případě jsou však obě roviny nad úrovní terénu a k~případům $1b$, $2b$ a $3b$
+tedy nedojde.
+
+Vzhledem k~tomu, že známe výškové rozmezí v~jaké se mraky nachází, můžeme
+dosazením do rovnice \ref{eq:ray-distance} získat vzdálenost oblasti mraků
+od kamery (počátku paprsku) a přeskočením této vzdálenosti snižit počet iterací
+potřebných k~ray marchingu.
+
+\begin{equation}
+  \begin{aligned}
+    d & = (y_{clouds} - y_{rayOrigin}) / y_{rayDirection}
+  \end{aligned}
+  \label{eq:ray-distance}
+\end{equation}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=9cm,keepaspectratio]{img/camera-possibilities}
+  \caption{Možnosti, které mohou nastat při ray marchingu.}
+  \label{fig:camera-possibilities}
+\end{figure}
+
+Při průchodu se z~hustoty mraků v~vzorkovaném místě akumuluje průhlednost,
+paprskek v tomto případě postupuje stále stejným směrem
+(modrá šipka na obrázku \ref{fig:cloud-marching}).
+Po překročení práhu průhlednosti $1.0$ je mrak považován za zcela neprůhledný
+a iterace je ukončena.
+
+Dále je třeba zjistit světlost mraku. V~ideálním případě bychom vyslali
+v~každém vzorkovaném bodě předchozího kroku paprsek směrem ke slunci,
+a~kromě akumulace průhlednosti bychom míchali úroveň světlosti.
+Pro výpočet v~reálném čase je to příliš náročné a proto je vyslán pouze
+jeden paprsek (červená šipka na obrázku \ref{fig:cloud-marching}) směrem ke slunci,
+který zjistí kolik světla mrak v~daném místě propouští. Tato aproximace může
+v~případě, kdy první paprsek protíná dva mraky přičemž první je částečně průhledný
+a světlý zatímco druhý je tmavý. Tmavá barva druhého mraku je nahrazena světlou
+barvou mraku prvního.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=7cm,keepaspectratio]{img/cloud-marching}
+  \caption{Výpočet průhlednosti a světlosti mraku.}
+  \label{fig:cloud-marching}
+\end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -189,11 +246,32 @@ Pro generování mraků mi pak posloužil 4D perlinův šum.
 % vidění, tak by tady měl byt screenshot, ze ktereho bude poznat jak to funguje.
 % K tomu by měla být idealně tabulka s vyhodnocením jak přesně/rychle to funguje.
 
+Podařilo se vytvořit algoritmus, který metodou ray marching vykresluje
+mraky vygenerované z~4D perlinova šumu. Mraky nevypadají příliš reálně, ale
+to už je spíše záležitost nastavení různých parametrů, než zásadními změnami
+v~algoritmu.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=15cm,keepaspectratio]{img/PGP-Clouds-01}
+  \caption{Ukázka výstupu aplikace.}
+  \label{fig:app-demo}
+\end{figure}
+
+Aplikace byla testována na grafické kartě \textbf{nVidia GeForce 680m GTX}.
+Na této grafické kartě běžela aplikace při rozlišení $1200 \times 800$ přibližně
+rychlostí \textbf{4 snímky za sekundu}.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Závěr}
 
 % Tady by mělo být stručně napsané jak to funguje.
+
+Výsledná aplikace není příliš optimalizovaná. Rozdělením procesu vykreslování
+mraků na více fází (uložení šumu do 3D textury, výpočet světlosti v~textuře,
+vykreslení mraků průchodem texturou) nebo použitím statických či předpočítaných
+dat by bylo možné zvýšit rychlost vykreslování a také se zbavit některých nedostatků.
 
 
 \bibliographystyle{alpha}
