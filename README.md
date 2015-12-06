@@ -31,3 +31,8 @@ Program se ovládá klávesami `W`, `A`, `S`, `D` pro pohyb závislý na směru 
 klávesy `SHIFT` a `CTRL` pak slouží pro vertikální posun.
 
 Primárním tlačítkem myši pak lze kamerou rotovat.
+
+Github
+======
+
+https://github.com/JOndra91/volumetric-clouds
