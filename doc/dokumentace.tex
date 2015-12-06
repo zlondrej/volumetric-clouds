@@ -2,10 +2,9 @@
 %\documentclass{article}
 
 \documentclass[a4paper, 12pt]{article}
-\usepackage[T1]{fontenc}
+% \usepackage[T1]{fontenc}
+\usepackage[T1, IL2]{fontenc}
 \usepackage[bf]{caption}
-\usepackage{hyperref}
-\usepackage[all]{hypcap}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage[czech, english]{babel}
@@ -15,15 +14,20 @@
 \usepackage{url}
 \inputencoding{utf8}
 %\usepackage[bf]{caption2}
-\usepackage{hyperref}
-\usepackage[all]{hypcap}
-\hypersetup{colorlinks=false, linkbordercolor=1 1 1, citebordercolor=1 1 1}
 \usepackage[right]{lineno}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{subcaption}
 \renewcommand\linenumberfont{\normalfont\tiny\color{blue}}
 
+\usepackage[unicode,colorlinks,hyperindex,plainpages=false,pdftex]{hyperref}
+\usepackage[all]{hypcap}
+\hypersetup{
+  colorlinks=false,
+  linkbordercolor=1 1 1,
+  citebordercolor=1 1 1,
+  hidelinks
+}
 
 \title{Zobrazování volumetrických mraků v pohybu}
 \author{Ondřej Janošík <xjanos12@stud.fit.vutbr.cz>}
@@ -53,13 +57,14 @@ volumetrických dat a také způsob generování perlinova šumu.
 
 \subsection{Perlinův šum}
 
-Různé varianty šumu se používají v grafice zejména k~dosažení různých efektů,
-jako například oheň, kouř, vlnění vodní hladiny nebo také pro generování
-terénů či právě mraků a to volumetrických, nebo jen dvourozměrných billboardů.
-
 \textit{Perlinův šum} je jednoduše řečeno suma šumů o různých amplitudách
 a frekvencích.
 Případně lze mezi jednotlivými složkami také zavést fázový posun.
+V~počítačové grafice se používá zejména k~dosažení různých efektů,
+jako například oheň, kouř, vlnění vodní hladiny nebo také pro generování
+terénů či právě mraků a to volumetrických, nebo jen dvourozměrných billboardů.
+\cite{url:wiki-perlin-noise}
+
 
 Základem pro vytvoření perlinova šumu je samotná šumová funkce.
 Ta uvnitř ukrývá jednoduchou hashovací funkci.
@@ -69,7 +74,7 @@ hodnotu šumu v~okolních celočíselných hranicích a na základě desetinné 
 interpolujeme (\ref{eq:floating-noise}).
 Lze využít například jednoduché lineární interpolace (\ref{eq:mix-lin}),
 nebo pak lehce pokročilejší kosinovy interpolace (\ref{eq:mix-cos}), která
-má oproti linerání interpolaci hladší průběh.
+má oproti linerání interpolaci hladší průběh. \cite{url:elias-perlin-noise}
 
 \begin{equation}
   \begin{aligned}
@@ -112,15 +117,15 @@ rovnice \ref{eq:perlin-sum}.
 
 \textit{Ray marching} nebo také \textit{volumetric ray tracing} je obrazová
 metoda vykreslování volumetrických (objemových) dat.
-Objemové tělěso je vhodné nějakým způsobem vymezit. Pro tyto účely
-lze použít například \textit{bounding box}.
-
 Zásadní rozdíl oproti klasickému \textit{ray tracingu} je v~tom, že pokud
 paprsek narazí na těleso, tak se nezastaví, ale může prostupovat skrze těleso,
 většinou s~konstatním krokem, což není podmínkou.
 Při tomto průchodu skrze těleso se akumulují různé vlastnosti
 jako barva nebo hustota a ty se pak mísí (blendují) do výsledné barvy pixelu
-spolu s~pozadím.
+spolu s~pozadím. \cite{url:wiki-ray-marching}
+
+Objemové tělěso je vhodné nějakým způsobem vymezit. Pro tyto účely
+lze použít například \textit{bounding box}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -260,7 +265,7 @@ v~algoritmu.
 
 Aplikace byla testována na grafické kartě \textbf{nVidia GeForce 680m GTX}.
 Na této grafické kartě běžela aplikace při rozlišení $1200 \times 800$ přibližně
-rychlostí \textbf{4 snímky za sekundu}.
+rychlostí \textbf{4 snímky za sekundu}, nejedná se tedy o~real-time vykreslování.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -270,13 +275,14 @@ rychlostí \textbf{4 snímky za sekundu}.
 
 Výsledná aplikace není příliš optimalizovaná. Rozdělením procesu vykreslování
 mraků na více fází (uložení šumu do 3D textury, výpočet světlosti v~textuře,
-vykreslení mraků průchodem texturou) nebo použitím statických či předpočítaných
-dat by bylo možné zvýšit rychlost vykreslování a také se zbavit některých nedostatků.
+vykreslení mraků průchodem texturou) nebo použitím statických dat by bylo možné
+zvýšit rychlost vykreslování a také se zbavit některých nedostatků.
 
+\nocite{url:clouds-wakapon}
 
-\bibliographystyle{alpha}
+\bibliographystyle{czechiso}
 \begin{flushleft}
-  \bibliography{project}
+  \bibliography{dokumentace}
 \end{flushleft}
 
 %\appendix
