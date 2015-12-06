@@ -21,8 +21,8 @@ Pro překlad stačí spustit příkaz `make`. Výsledný spustitelný soubor pak
 Spuštení
 ========
 
-Po překladu spusťte soubor `bin/ray-marching`. Program nepředpokládá žádné
-vstupní parametry.
+Po překladu spusťte soubor `bin/ray-marching` z adresáře projektu.
+Program nepředpokládá žádné vstupní parametry.
 
 Ovládání
 ========
