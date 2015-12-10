@@ -16,16 +16,17 @@ namespace pgp {
         Camera *camera;
         Landscape *landscape;
         ComputeShaderProgram *computeProgram;
-        RenderShaderProgram blitProgram;
-        GLuint uColor, uDepth, uCloud, uCloudDepth;
+        RenderShaderProgram blendProgram;
+        GLuint uDepth, uCloud, uCloudDepth;
         GLuint uPosition, uTime;
         GLuint uSunPosition, uSunColor;
         GLuint uInvVP;
 
         GLuint cloudTexture, cloudDepthTexture;
 
-        GLuint aBlitPosition;
-        GLuint uBlitTexture;
+        GLuint aBlendPosition;
+        GLuint uFrontTexture, uBackTexture;
+        GLuint uFrontDepth, uBackDepth;
         GLuint vao, vbo, ebo;
 
         float time;

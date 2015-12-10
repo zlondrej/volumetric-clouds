@@ -9,8 +9,6 @@ using namespace glm;
 
 #define DOWNSCALE 4
 
-//#define USE_QUAD_BLIT
-
 #define DIV_ROUND_UP(x,d) ((x + d - 1)/d)
 
 static float verticies[] = {
@@ -25,8 +23,8 @@ static GLuint indicies[] = {
 };
 
 static string computeShaderFile("./shaders/clouds.comp");
-static string blitVertexShaderFile("./shaders/blit.vert");
-static string blitFragmentShaderFile("./shaders/blit.frag");
+static string blendVertexShaderFile("./shaders/blend.vert");
+static string blendFragmentShaderFile("./shaders/blend.frag");
 
 Clouds::Clouds(Camera *cam, Landscape *land) {
 
@@ -59,13 +57,18 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    blitProgram.setVertexShaderFromFile(blitVertexShaderFile);
-    blitProgram.setFragmenShaderFromFile(blitFragmentShaderFile);
+    blendProgram.setVertexShaderFromFile(blendVertexShaderFile);
+    blendProgram.setFragmenShaderFromFile(blendFragmentShaderFile);
 
-    program = blitProgram.getProgram();
+    program = blendProgram.getProgram();
 
-    aBlitPosition = glGetAttribLocation(program, "position");
-    uBlitTexture = glGetUniformLocation(program, "texture");
+    aBlendPosition = glGetAttribLocation(program, "position");
+
+    uFrontTexture = glGetUniformLocation(program, "frontTexture");
+    uBackTexture = glGetUniformLocation(program, "backTexture");
+
+    uFrontDepth = glGetUniformLocation(program, "frontDepth");
+    uBackDepth = glGetUniformLocation(program, "backDepth");
 
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
@@ -74,8 +77,8 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof (verticies), verticies, GL_STATIC_DRAW);
 
-    glEnableVertexAttribArray(aBlitPosition);
-    glVertexAttribPointer(aBlitPosition, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(aBlendPosition);
+    glVertexAttribPointer(aBlendPosition, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -88,7 +91,6 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 }
 
 void Clouds::initComputeUniforms(GLuint program) {
-  uColor = glGetUniformLocation(program, "colorIm");
   uDepth = glGetUniformLocation(program, "depthIm");
   uCloud = glGetUniformLocation(program, "cloudIm");
   uCloudDepth = glGetUniformLocation(program, "cloudDepthIm");
@@ -128,16 +130,13 @@ void Clouds::render() {
 
     glUseProgram(computeProgram->getProgram());
 
-    glBindImageTexture(0, landscape->getColorTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
-    glUniform1i(uColor, 0);
-
     glBindImageTexture(1, landscape->getDepthTexture(), 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32F);
     glUniform1i(uDepth, 1);
 
-    glBindImageTexture(2, cloudTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+    glBindImageTexture(2, cloudTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
     glUniform1i(uCloud, 2);
 
-    glBindImageTexture(3, cloudDepthTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32F);
+    glBindImageTexture(3, cloudDepthTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F);
     glUniform1i(uCloudDepth, 3);
 
     glUniform3fv(uPosition, 1, &pos[0]);
@@ -147,16 +146,29 @@ void Clouds::render() {
 
     glDispatchCompute(DIV_ROUND_UP(dws.x, 16), DIV_ROUND_UP(dws.y, 4), 1);
 
-#ifdef USE_QUAD_BLIT
-
-    glUseProgram(blitProgram.getProgram());
+    glUseProgram(blendProgram.getProgram());
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, landscape->getColorTexture());
 
-    glUniform1i(uBlitTexture, 0);
+    glUniform1i(uBackTexture, 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, cloudTexture);
+
+    glUniform1i(uFrontTexture, 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, landscape->getDepthTexture());
+
+    glUniform1i(uBackDepth, 2);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, cloudDepthTexture);
+
+    glUniform1i(uFrontDepth, 3);
 
     glBindVertexArray(vao);
 
@@ -165,14 +177,6 @@ void Clouds::render() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, NULL);
 
-#else
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, landscape->getFramebuffer());
-
-    glBlitFramebuffer(0, 0, ws.x, ws.y, 0, 0, ws.x, ws.y, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
-#endif
 }
 
 void Clouds::step(float _time, float) {
@@ -188,8 +192,8 @@ IEventListener::EventResponse Clouds::onEvent(SDL_Event *evt) {
 
           ivec2 windowSize = DIV_ROUND_UP(camera->getWindowSize(), DOWNSCALE);
 
-          std::cout << "Size change: " << camera->getWindowSize().x << "x" << camera->getWindowSize().y << std::endl;
-          std::cout << "Downsampled: " << windowSize.x << "x" << windowSize.y << std::endl;
+          // std::cout << "Size change: " << camera->getWindowSize().x << "x" << camera->getWindowSize().y << std::endl;
+          // std::cout << "Downsampled: " << windowSize.x << "x" << windowSize.y << std::endl;
 
           glBindTexture(GL_TEXTURE_2D, cloudTexture);
           glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowSize.x, windowSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);

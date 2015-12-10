@@ -3,10 +3,9 @@
 #define UINT_MAX 4294967295U
 #define PI 3.141592653589793
 
-layout(rgba8) uniform image2D colorIm;
 readonly layout(r32f) uniform image2D depthIm;
-layout(rgba8) uniform image2D cloudIm;
-layout(r32f) uniform image2D cloudDepthIm;
+writeonly layout(rgba8) uniform image2D cloudIm;
+writeonly layout(r32f) uniform image2D cloudDepthIm;
 
 uniform vec3 eyePosition;
 uniform vec3 sunPosition = vec3(0.0, 1e10, 0.0);
@@ -66,7 +65,7 @@ void main() {
     uint x = gl_GlobalInvocationID.x;
     uint y = gl_GlobalInvocationID.y;
 
-    ivec2 screenSize = imageSize(colorIm);
+    ivec2 screenSize = imageSize(depthIm);
     ivec2 cloudSize = imageSize(cloudIm);
 
     downsample = int(ceil(float(screenSize.x) / float(cloudSize.x)));
@@ -101,57 +100,6 @@ void main() {
     // c = vec4(noise(vec4(vec3(iCoords,0.0) + eyePosition, time)/128.0)/3.0);
     // Depth texture
     // c = vec4(d.xxx / 300.0, 1.0);
-
-    memoryBarrier();
-
-    vec4 cloudSamples[4];
-    vec4 cloudDepthSamples[4];
-
-    cloudSamples[0] = imageLoad(cloudIm, iDCoords+ivec2(0, 0));
-    cloudSamples[1] = imageLoad(cloudIm, iDCoords+ivec2(0, 1));
-    cloudSamples[2] = imageLoad(cloudIm, iDCoords+ivec2(1, 0));
-    cloudSamples[3] = imageLoad(cloudIm, iDCoords+ivec2(1, 1));
-
-    cloudDepthSamples[0] = imageLoad(cloudDepthIm, iDCoords+ivec2(0, 0));
-    // cloudDepthSamples[1] = imageLoad(cloudDepthIm, iDCoords+ivec2(0, 1));
-    // cloudDepthSamples[2] = imageLoad(cloudDepthIm, iDCoords+ivec2(1, 0));
-    // cloudDepthSamples[3] = imageLoad(cloudDepthIm, iDCoords+ivec2(1, 1));
-
-    vec4 color, depth;
-    ivec2 offset;
-    vec4 a, b, c;
-    vec4 e, f, g;
-    for(int i = 0; i < downsample; i++) {
-        for(int j = 0; j < downsample; j++) {
-            offset = ivec2(i,j);
-            color = imageLoad(colorIm, iCoords + offset);
-            depth = imageLoad(depthIm, iCoords + offset);
-
-            a = mix(cloudSamples[0], cloudSamples[1], j/float(downsample));
-            b = mix(cloudSamples[1], cloudSamples[2], j/float(downsample));
-
-            // c = mix(a, b, i/float(downsample));
-            c = cloudSamples[0];
-
-
-            // e = mix(cloudDepthSamples[0], cloudDepthSamples[1], j/float(downsample));
-            // f = mix(cloudDepthSamples[1], cloudDepthSamples[2], j/float(downsample));
-
-            // g = mix(e, f, i/float(downsample));
-            g = cloudDepthSamples[0];
-
-
-            if(g.x < depth.x) {
-                color.rgb = mix(color.rgb, c.rgb, c.a);
-            }
-
-            imageStore(colorIm, iCoords + offset, color);
-            // imageStore(colorIm, iCoords + offset, c*c.a);
-            // imageStore(colorIm, iCoords + offset, depth.xxxx/5000.0);
-            // imageStore(colorIm, iCoords + offset, g.xxxx/5000.0);
-        }
-    }
-
 }
 
 vec4 marchClouds(Ray r, inout float depth) {
