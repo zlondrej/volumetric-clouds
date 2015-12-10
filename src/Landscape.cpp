@@ -379,7 +379,30 @@ void Landscape::step(float time, float delta) {
 }
 
 IEventListener::EventResponse Landscape::onEvent(SDL_Event* evt) {
-    if (evt->type == SDL_KEYDOWN) {
+
+    if (evt->type == SDL_WINDOWEVENT) {
+        SDL_WindowEvent *e = &evt->window;
+
+        if (e->event == SDL_WINDOWEVENT_RESIZED
+                || e->event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+
+            ivec2 windowSize = camera->getWindowSize();
+
+            glBindTexture(GL_TEXTURE_2D, colTex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowSize.x, windowSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+            glBindTexture(GL_TEXTURE_2D, depTex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, windowSize.x, windowSize.y, 0, GL_RED, GL_FLOAT, NULL);
+
+            glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, windowSize.x, windowSize.y);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            return EVT_PROCESSED;
+        }
+    } else if (evt->type == SDL_KEYDOWN) {
         SDL_KeyboardEvent *e = &evt->key;
 
         if (e->keysym.sym == SDLK_p) {

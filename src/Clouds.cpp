@@ -39,7 +39,7 @@ Clouds::Clouds(Camera *cam, Landscape *land) {
 
     GLuint program = computeProgram->getProgram();
 
-    ivec2 windowSize = camera->getWindowSize()/DOWNSCALE;
+    ivec2 windowSize = DIV_ROUND_UP(camera->getWindowSize(),DOWNSCALE);
 
     initComputeUniforms(program);
 
@@ -118,7 +118,7 @@ Clouds::~Clouds() {
 void Clouds::render() {
 
     ivec2 ws = camera->getWindowSize();
-    ivec2 dws = ws/DOWNSCALE;
+    ivec2 dws = DIV_ROUND_UP(ws,DOWNSCALE);
     vec3 pos = camera->getPosition();
 
     mat4 viewMat = landscape->getViewMatrix();
@@ -180,7 +180,28 @@ void Clouds::step(float _time, float) {
 }
 
 IEventListener::EventResponse Clouds::onEvent(SDL_Event *evt) {
-    if (evt->type == SDL_KEYDOWN) {
+  if (evt->type == SDL_WINDOWEVENT) {
+      SDL_WindowEvent *e = &evt->window;
+
+      if (e->event == SDL_WINDOWEVENT_RESIZED
+          || e->event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+
+          ivec2 windowSize = DIV_ROUND_UP(camera->getWindowSize(), DOWNSCALE);
+
+          std::cout << "Size change: " << camera->getWindowSize().x << "x" << camera->getWindowSize().y << std::endl;
+          std::cout << "Downsampled: " << windowSize.x << "x" << windowSize.y << std::endl;
+
+          glBindTexture(GL_TEXTURE_2D, cloudTexture);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowSize.x, windowSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+          glBindTexture(GL_TEXTURE_2D, cloudDepthTexture);
+          glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, windowSize.x, windowSize.y, 0, GL_RED, GL_FLOAT, NULL);
+
+          glBindTexture(GL_TEXTURE_2D, 0);
+
+          return EVT_PROCESSED;
+      }
+  } else if (evt->type == SDL_KEYDOWN) {
         SDL_KeyboardEvent *e = &evt->key;
 
         if (e->keysym.sym == SDLK_r) {

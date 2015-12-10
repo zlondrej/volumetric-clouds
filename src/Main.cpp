@@ -122,7 +122,7 @@ void Main::init() {
             SDL_WINDOWPOS_UNDEFINED,
             1200,
             800,
-            SDL_WINDOW_OPENGL
+            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
             );
 
     if (sdlWindow == NULL) {

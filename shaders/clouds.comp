@@ -69,7 +69,7 @@ void main() {
     ivec2 screenSize = imageSize(colorIm);
     ivec2 cloudSize = imageSize(cloudIm);
 
-    downsample = screenSize.x / cloudSize.x;
+    downsample = int(ceil(float(screenSize.x) / float(cloudSize.x)));
 
     if(x >= cloudSize.x || y >= cloudSize.y) {
       return;
