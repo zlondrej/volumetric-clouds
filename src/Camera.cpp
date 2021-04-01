@@ -1,6 +1,7 @@
 #include "Camera.hpp"
 
 #include <glm/ext.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 #include <GL/glew.h>
 
 #define PI_HALF_CLAMP (1.57079632679f - 0.0001f)
