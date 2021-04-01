@@ -13,7 +13,7 @@ jobs:
       - self-hosted
       - linux
     container:
-      image: volumetric-clouds-build
+      image: zlondrej/playground:volumetric-clouds-build
     steps:
     - uses: actions/checkout@v2
     - name: make
