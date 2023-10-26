@@ -9,7 +9,7 @@
 using namespace pgp;
 using namespace glm;
 
-Camera::Camera(SDL_Window *_window) : position(0.0, 35.0, 0.0), rotation(0, 0) {
+Camera::Camera(SDL_Window *_window) : position(0.0, 35.0, 0.0), rotation(0, 0), movement(0, 0, 0) {
     window = _window;
     SDL_GetWindowSize(window, &(windowSize.x), &(windowSize.y));
 }
@@ -40,7 +40,7 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
         SDL_KeyboardEvent *e = &evt->key;
 
         positive = max(ivec3(0, 0, 0), movement);
-        negative = min(ivec3(0, 0, 0), movement);
+        negative = -min(ivec3(0, 0, 0), movement);
 
         int active = (evt->type == SDL_KEYDOWN) ? 1 : 0;
 
@@ -76,8 +76,8 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
 
         if (SDL_BUTTON_LEFT & e->state) {
             // TODO: Adjust mouse sensitivity coeficient
-            rotation.y += e->xrel * 0.002;
-            rotation.x -= e->yrel * 0.002;
+            rotation.y -= e->xrel * 0.002;
+            rotation.x += e->yrel * 0.002;
 
             // To prevent horizontal turn
             rotation.x = clamp(rotation.x, -PI_HALF_CLAMP, PI_HALF_CLAMP);

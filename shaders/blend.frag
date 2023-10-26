@@ -10,11 +10,11 @@ in vec2 textureCoords;
 out vec3 color;
 
 void main() {
-  vec4 front = texture2D(frontTexture, textureCoords);
-  vec4 back = texture2D(backTexture, textureCoords);
+  vec4 front = texture(frontTexture, textureCoords);
+  vec4 back = texture(backTexture, textureCoords);
 
-  vec4 frontD = texture2D(frontDepth, textureCoords);
-  vec4 backD = texture2D(backDepth, textureCoords);
+  vec4 frontD = texture(frontDepth, textureCoords);
+  vec4 backD = texture(backDepth, textureCoords);
 
   if(backD.x <= frontD.x) {
     color = back.rgb;
