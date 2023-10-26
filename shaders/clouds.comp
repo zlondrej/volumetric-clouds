@@ -223,7 +223,7 @@ float hash(int q) {
   q = (q * q) + 77433;
   uint n = uint(q * 37);
 
-  return (((((n * 3342687u + 1144763u) & uint(0xf2fcf7dd)wwwwwwwwwwww) - 77663544) * -113) * n) / float(UINT_MAX);
+  return (((((n * 3342687u + 1144763u) & uint(0xf2fcf7dd)) - 77663544) * -113) * n) / float(UINT_MAX);
 }
 
 float hash(ivec2 q) {
