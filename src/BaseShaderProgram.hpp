@@ -13,7 +13,7 @@ namespace pgp {
     public:
         BaseShaderProgram();
 
-        ~BaseShaderProgram() {
+        virtual ~BaseShaderProgram() {
             deleteProgram();
         }
         GLuint getProgram();

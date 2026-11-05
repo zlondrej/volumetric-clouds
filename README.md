@@ -28,9 +28,13 @@ Ovládání
 ========
 
 Program se ovládá klávesami `W`, `A`, `S`, `D` pro pohyb závislý na směru kamery,
-klávesy `SHIFT` a `CTRL` pak slouží pro vertikální posun.
+mezerník a `C` pak slouží pro vertikální posun. Držením klávesy `SHIFT`
+se pohyb zrychlí.
 
 Primárním tlačítkem myši pak lze kamerou rotovat.
+
+Klávesy `[` a `]` mění pokrytí oblohy mraky, `R` znovu načte shadery mraků
+a `P` přepíná režim vykreslování terénu.
 
 Github
 ======

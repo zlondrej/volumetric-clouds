@@ -48,168 +48,255 @@ a zejména pak ve hrách bývají mraky součástí skyboxu,
 při průletu mraky. Pro tento případ je třeba využít volumetrických dat a právě
 zobrazování volumetrických procedurálně generovaných mraků je náplní této práce.
 
+Tento dokument popisuje přepracovanou verzi projektu. Původní verze
+(z~roku 2015) vykreslovala mraky rychlostí jednotek snímků za sekundu a mraky
+nepůsobily věrohodně. Kapitola \ref{sec:original} shrnuje, co bylo na původním
+řešení chybně, a zbytek dokumentu popisuje řešení současné.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Teorie}
 
-V této kapitole popisuji techniky, které lze využít při renderování
-volumetrických dat a také způsob generování perlinova šumu.
+V~této kapitole popisuji procedurální šum, ze kterého jsou mraky i~terén
+generovány, fyzikální model průchodu světla oblakem a metodu ray marching.
 
-\subsection{Perlinův šum}
+\subsection{Hodnotový a gradientní šum}
 
-\textit{Perlinův šum} je jednoduše řečeno suma šumů o různých amplitudách
-a frekvencích.
-Případně lze mezi jednotlivými složkami také zavést fázový posun.
-V~počítačové grafice se používá zejména k~dosažení různých efektů,
-jako například oheň, kouř, vlnění vodní hladiny nebo také pro generování
-terénů či právě mraků a to volumetrických, nebo jen dvourozměrných billboardů.
-\cite{url:wiki-perlin-noise}
+Základem procedurálního šumu je hashovací funkce, která celočíselným souřadnicím
+mřížky přiřadí pseudonáhodnou hodnotu. Šum v~neceločíselném bodě se získá
+interpolací hodnot v~okolních uzlech mřížky. Pro $N$-rozměrný šum je třeba
+$2^N$ vzorků a $2^N - 1$ interpolací.
 
+Pokud se interpolují přímo náhodné hodnoty, jde o~\textit{hodnotový šum}
+(value noise). \textit{Perlinův šum} je naproti tomu šum
+\textit{gradientní}: v~uzlech mřížky jsou náhodné gradienty a interpoluje se
+jejich skalární součin s~vektorem od uzlu k~bodu \cite{perlin2002}. Gradientní
+šum má méně patrnou strukturu mřížky. Často citovaný článek
+\cite{url:elias-perlin-noise} pod názvem Perlinův šum ve skutečnosti popisuje
+šum hodnotový.
 
-Základem pro vytvoření perlinova šumu je samotná šumová funkce.
-Ta uvnitř ukrývá jednoduchou hashovací funkci.
-Hashovací funkce ovšem pracuje pouze s~celými čísly a pro naše potřeby je třeba
-šum generovat z~čísel s~plovoucí desetinnou čárkou. Za tímto účelem si získáme
-hodnotu šumu v~okolních celočíselných hranicích a na základě desetinné části
-interpolujeme (\ref{eq:floating-noise}).
-Lze využít například jednoduché lineární interpolace (\ref{eq:mix-lin}),
-nebo pak lehce pokročilejší kosinovy interpolace (\ref{eq:mix-cos}), která
-má oproti linerání interpolaci hladší průběh. \cite{url:elias-perlin-noise}
+Pro hladký průběh se místo lineární interpolace používá vyhlazení parametru
+polynomem (\ref{eq:quintic}), jehož první i~druhá derivace jsou v~uzlech
+nulové. Oproti kosinové interpolaci je výpočetně levnější.
 
 \begin{equation}
-  \begin{aligned}
-    noise(x) & = mix(hash(n_1), hash(n_2), fract(x)) \\
-    % where
-    n_1 & = floor(x) \\
-    n_2 & = n_1 + 1 \\
-  \end{aligned}
-  \label{eq:floating-noise}
+  s(t) = 6t^5 - 15t^4 + 10t^3
+  \label{eq:quintic}
 \end{equation}
+
+Součtem několika vrstev (oktáv) šumu o~rostoucí frekvenci a klesající amplitudě
+vzniká \textit{fraktální šum} (fBm, rovnice \ref{eq:fbm}), obvykle
+s~$f_i = 2^i$ a $A_i = 2^{-i}$.
 
 \begin{equation}
-    mixLinear(a, b, x) = a \cdot (1 - x) + b \cdot x
-  \label{eq:mix-lin}
+  fbm(\vec{x}) = \sum^{n-1}_{i=0} noise(\vec{x} \cdot f_i) \cdot A_i
+  \label{eq:fbm}
 \end{equation}
+
+\textit{Worleyho} (buněčný) šum \cite{worley1996} rozmístí do každé buňky
+mřížky náhodný bod a hodnotou šumu je vzdálenost k~nejbližšímu z~nich.
+Invertovaný Worleyho šum tvoří zaoblené \uv{bubliny}, které dobře odpovídají
+kupovitým mrakům. Kombinací Perlinova a Worleyho šumu vzniká tzv.
+\textit{Perlin-Worley} šum, který má souvislé tvary Perlinova šumu a zároveň
+nadýchané okraje šumu Worleyho \cite{schneider2015}.
+
+\subsection{Průchod světla oblakem}
+
+Mrak je participující médium: světlo je v~něm pohlcováno a rozptylováno.
+Pro mraky je pohlcování zanedbatelné a téměř všechno zeslabení světla
+(\textit{extinkce}) je způsobeno rozptylem. Propustnost $T$ (transmitance)
+podél paprsku popisuje Beerův--Lambertův zákon (\ref{eq:beer}), kde $\sigma_t$
+je koeficient extinkce úměrný hustotě mraku. Pro diskrétní kroky
+délky $\Delta s_i$ přechází integrál v~součin.
 
 \begin{equation}
-  \begin{aligned}
-    mixCos(a, b, x) & = a \cdot (1 - x') + b \cdot x' \\
-    x' & = \frac{1 - cos(x \cdot \pi)}{2}
-  \end{aligned}
-  \label{eq:mix-cos}
+  T = e^{-\int \sigma_t(s)\,ds} \approx \prod_i e^{-\sigma_t(\vec{x}_i)\,\Delta s_i}
+  \label{eq:beer}
 \end{equation}
 
-Pro získání vzorku $N$-rozměrného šumu je pak třeba získat $2^N$ vzorků
-a následně provést $2^N-1$ interpolací. Složitost výpočtu je tedy $O(2^N)$.
-Samotný výpočet perlinova šumu pak popisuje
-rovnice \ref{eq:perlin-sum}.
+Neprůhlednost tedy neroste lineárně s~nasčítanou hustotou, ale exponenciálně
+se blíží jedné, a výsledek nezávisí na délce kroku.
+
+Rozptýlené světlo nemá ve všech směrech stejnou intenzitu. Vodní kapky rozptylují
+světlo převážně dopředu, proto mají mraky při pohledu proti slunci zářivé okraje.
+Rozdělení do směrů popisuje \textit{fázová funkce}, nejčastěji
+Henyeyova--Greensteinova (\ref{eq:hg}) \cite{henyey1941}, kde $\theta$ je úhel
+mezi směrem pohledu a směrem ke slunci a $g \in (-1, 1)$ určuje míru
+dopředného ($g > 0$) či zpětného ($g < 0$) rozptylu.
 
 \begin{equation}
-  \begin{aligned}
-    perlin(\vec{x}) & = \sum^{n}_{i=0} noise(\vec{x} \cdot f_i) \cdot A_i \\
-    n & \in \mathbb{N} \\
-    f_i, A_i & \in \mathbb{R} \\
-  \end{aligned}
-  \label{eq:perlin-sum}
+  p_{HG}(\theta) = \frac{1 - g^2}{4 \pi \left(1 + g^2 - 2g\cos\theta\right)^{3/2}}
+  \label{eq:hg}
 \end{equation}
+
+V~oblaku se světlo rozptýlí mnohokrát, než dorazí k~pozorovateli.
+Simulace vícenásobného rozptylu je pro reálný čas příliš drahá, používá se
+proto aproximace \cite{wrenninge2013}, která sčítá několik oktáv
+jednoduchého rozptylu se zmenšenou extinkcí (\ref{eq:multiscatter}).
+Díky tomu mraky nejsou ve stínu nepřirozeně černé.
+
+\begin{equation}
+  L_{sun} = \sum_{i=0}^{2} a^i \, e^{-b^i \tau} \, p(\theta), \qquad a = b = 0.5
+  \label{eq:multiscatter}
+\end{equation}
+
+$\tau$ je optická hloubka mezi vzorkem a sluncem.
 
 \subsection{Ray marching}
 
 \textit{Ray marching} nebo také \textit{volumetric ray tracing} je obrazová
 metoda vykreslování volumetrických (objemových) dat.
 Zásadní rozdíl oproti klasickému \textit{ray tracingu} je v~tom, že pokud
-paprsek narazí na těleso, tak se nezastaví, ale může prostupovat skrze těleso,
-většinou s~konstatním krokem, což není podmínkou.
-Při tomto průchodu skrze těleso se akumulují různé vlastnosti
-jako barva nebo hustota a ty se pak mísí (blendují) do výsledné barvy pixelu
-spolu s~pozadím. \cite{url:wiki-ray-marching}
+paprsek narazí na těleso, tak se nezastaví, ale prochází jím a v~jednotlivých
+krocích vzorkuje jeho vlastnosti. Ty se pak skládají do výsledné barvy pixelu
+spolu s~pozadím \cite{url:wiki-ray-marching}.
 
-Objemové tělěso je vhodné nějakým způsobem vymezit. Pro tyto účely
-lze použít například \textit{bounding box}.
+Objemové těleso je vhodné nějakým způsobem vymezit, aby se nevzorkovala
+prázdná místa. Pro tyto účely lze použít například \textit{bounding box},
+v~případě vrstvy mraků pak dvojici vodorovných rovin.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Popis řešení}
 
-% Tady stručně popište, jakým způsobem jste prakticky projekt řešili. Uveďte zejména použité
-% technologie a algoritmy. Zaměřte se hlavně na zajímavé a důležité části implementace a také na
-% problémy, které jste řešili. Není nutné popisovat každou třídu.
-%
-% Např. uveďte, jak jste matematický popis z předchozí kapitoly implementovali prakticky.
+Aplikace je napsána v~C++ s~využitím OpenGL~4.3, SDL2 a GLEW.
+Snímek se skládá ze tří fází:
 
-V rámci řešení jsem využil ray marching s podvzorkováním $\frac{1}{8}$,
-compute shader a 2D a 4D perlinův šum.
-V~první fázi jsem vykreslil oblohu bez mraků a terén. Do textury jsem
-si uložil jednak barvu, tak i~vzdálenost fragmentů od pozice kamery. V~tomto
-případě se však nejedná o~standardní depth buffer\footnote{
-Depth buffer neukládá vzdálenost fragmentu od kamery, nýbrž
-nejkratší vzdálenost od roviny kamery. To může vést k~nežádoucím efektům
-při pohybu kamery.}.
-V~následující fázi jsem spustil compute shader s~podvorkováním kvůli snížení
-výpočetní náročnosti. Samotná metoda vykreslení je popsána v~kapiloe \ref{sec:cloud-rendering}.
+\begin{enumerate}
+  \item Vykreslení terénu do textury. Kromě barvy se do druhé textury ukládá
+    vzdálenost fragmentu od kamery\footnote{Nejde o~standardní depth buffer,
+    který ukládá nelineární (přibližně $1/z$) funkci hloubky v~prostoru kamery,
+    nikoliv vzdálenost od kamery.}. Pixely bez terénu mají vzdálenost $10^{15}$.
+  \item Ray marching mraků v~compute shaderu v~polovičním rozlišení
+    (čtvrtinovém počtu pixelů).
+  \item Složení obrazu: obloha, mlha, mraky, stíny mraků, tone mapping.
+\end{enumerate}
 
-\subsection{Terén a volumetrická reprezentace mraků}
+Při spuštění se navíc jednorázově vygeneruje 3D textura šumu
+(kapitola \ref{sec:noise-texture}).
 
-Při implementaci jsem použil perlinův šum rovnou dvakrát.
-Poprvé jako výškovou mapu pro generování terénu, podruhé pro samotné mraky.
-Bylo třeba implementovat 2D a 4D\footnote{Čtvrtou složkou 4D šumu je čas.},
-perlinův šum.
+\subsection{Terén}
 
-V~případě 2D šumu jsem si vystačil s~\textit{bikosinovou interpolací}\footnote{
-Bikosinova interpolace je podobná interpolaci bilineární, místo
-linerání interpolace však používá interpolaci kosinovu (\ref{eq:mix-cos}).
-}
-která je implementačně relativně jednoduchá. Na~obrázku \ref{fig:interpolation}
-popisující $N$-rozměrnou linerání/kosinovu interpolaci si lze všimnout,
-že interpolaci v~$N$-rozměrném prostoru je možné vyjádřit jako dvě interpolace
-v prostoru o~jednu dimenzi nižším a jednu lineární/kosinovu interpolaci.
-Pro generování mraků mi pak posloužil 4D perlinův šum.
-
-\begin{figure}
-  \centering
-  \subcaptionbox*{Princip bilineární (2D) interpolace.}{
-      \includegraphics[width=6cm,keepaspectratio]{img/bi-interpolation}
-  }
-  \hspace{0.5cm}
-  \subcaptionbox*{Princip trilineární (3D) interpolace.}{
-      \includegraphics[width=6cm,keepaspectratio]{img/tri-interpolation}
-  }  \\
-  \vspace{2cm}
-  \subcaptionbox*{Princip quadrilineární (4D) interpolace.}{
-      \includegraphics[width=12cm,keepaspectratio]{img/quadri-interpolation}
-  }
-  \caption{Porovnání $N$-rozměrné linerární/kosinovy interpolace.}
-  \label{fig:interpolation}
-\end{figure}
-
-\subsection{Vykreslení mraků} \label{sec:cloud-rendering}
-
-U~ray marchingu začínáme stejně jako v~případě ray tracingu a to projekcí
-paprsku z~prostoru obrazovky do prostoru scény s~použitím inverzní
-view--projekční matice, což je popsáno v~rovnici \ref{eq:unprojection}.
-$\vec{r}$ je normalizovaný směrový vektor paprsku a $x$, $y$ jsou
-normalizované souřadnice zařízení (\textit{NDC}).
+Terén je výšková mapa definovaná funkcí v~shaderu. Tvoří ji zvlněná krajina
+(fraktální hodnotový šum o~4 oktávách) a pět hor. Každá hora je dána
+polohou, výškou a poloměrem. Její profil je v~rovnici \ref{eq:mountain},
+kde $r$ je vzdálenost od středu vztažená k~poloměru (s~deformací šumem, aby hory
+nebyly kruhové) a $ridged$ je tzv. hřebenový šum, $1 - |2 \cdot noise - 1|$,
+který vytváří ostré hřbety. Vrcholy hor sahají do spodní části vrstvy mraků.
 
 \begin{equation}
-  \vec{r} = normalize( (P \cdot V)^{-1} \cdot (x \cdot 2 - 1, y \cdot 2 - 1, 1, 1))
-  \label{eq:unprojection}
+  h_{hora} = H \cdot (1 - r)^2 (1 + 2r) \cdot (0.3 + ridged(\vec{x}))
+  \label{eq:mountain}
 \end{equation}
 
-Vrstva mraků je vymezena dvěma rovinami rovnoběžnými s~rovinou $y$.
-Při projekci paprsku pak teoreticky může dojít k~devíti různým případům
-zobrazených na obrázku \ref{fig:camera-possibilities}.
-V~mém případě jsou však obě roviny nad úrovní terénu a k~případům $1b$, $2b$ a $3b$
-tedy nedojde.
+Aby byly hory vidět i~z~dálky, sahá terén do vzdálenosti přibližně 8000
+jednotek. Vykresluje se metodou zjednodušených \textit{geometry clipmaps}
+\cite{losasso2004}: osm do sebe vnořených pravidelných mřížek o~$128 \times 128$
+čtvercích, přičemž každá další má dvojnásobnou rozteč vrcholů. Pozice vrcholů
+se počítají ve vertex shaderu z~\texttt{gl\_VertexID}, stačí tedy jediný
+index buffer. Každá úroveň je přichycena k~mřížce o~dvojnásobku své rozteče,
+takže vrcholy leží vždy na stejných místech ve světě a terén se při pohybu
+kamery \uv{nevlní}. Fragmenty úrovně, které překrývá jemnější úroveň, se zahodí,
+s~překryvem jedné buňky, aby mezi úrovněmi nevznikaly mezery.
+Normály se počítají ve vertex shaderu diferencemi výšky.
 
-Vzhledem k~tomu, že známe výškové rozmezí v~jaké se mraky nachází, můžeme
-dosazením do rovnice \ref{eq:ray-distance} získat vzdálenost oblasti mraků
-od kamery (počátku paprsku) a přeskočením této vzdálenosti snižit počet iterací
-potřebných k~ray marchingu.
+Barva terénu je podle výšky a sklonu: tráva na rovinách, skála na strmých
+svazích a výše položených místech, sníh na vrcholcích.
+
+\subsection{Textura šumu} \label{sec:noise-texture}
+
+Výpočet šumu přímo při ray marchingu je drahý (původní 4D šum vyžadoval
+pro každou oktávu 16 hashů a 15 interpolací). Šum se proto jednorázově
+vygeneruje compute shaderem do 3D textury $128^3$ (RGBA8) a poté se z~ní
+vzorkuje. Textura je periodická, aby ji bylo možné opakovat:
+
+\begin{itemize}
+  \item kanál R: Perlin-Worley šum (tvar mraků),
+  \item kanály G, B, A: fraktální Worleyho šum se 4, 8 a~16 buňkami
+    na délku textury (detaily).
+\end{itemize}
+
+Pokrytí oblohy mraky se čte z~další, dvourozměrné textury $512^2$ (R8)
+s~fraktálním Perlinovým šumem o~6 oktávách. Její perioda ve světě je
+20\,000 jednotek, tedy víc, než je dohled kamery, takže její opakování není
+vidět. Zpočátku bylo pokrytí čteno z~řezu 3D textury s~periodou 2400 jednotek:
+rozložení mraků se pak z~výšky viditelně opakovalo a Worleyho buňky v~něm
+vytvářely pravidelně rozmístěné shluky. Více oktáv Perlinova šumu naopak dává
+oblasti zatažené, polojasné i~jasné.
+
+K~oběma texturám se vygenerují mipmapy. Úroveň mipmapy se při vzorkování volí podle
+velikosti oblasti, kterou vzorek pokrývá (rovnice \ref{eq:lod}, kde $w$ je
+velikost této oblasti ve světových jednotkách, $N = 128$ rozlišení textury
+a $S$ velikost jedné periody textury ve světě). Vzdálené mraky tak čtou
+z~menších mipmap, což je rychlejší a nevzniká aliasing.
+
+\begin{equation}
+  \lambda = \max\left(0, \log_2 \frac{w \cdot N}{S}\right)
+  \label{eq:lod}
+\end{equation}
+
+\subsection{Model hustoty mraků}
+
+Vrstva mraků leží mezi výškami 90 a~210. Hustota v~bodě se počítá podle
+postupu z~\cite{schneider2015} ve čtyřech krocích:
+
+\begin{enumerate}
+  \item \textbf{Pokrytí} $w$ -- textura pokrytí (perioda 20\,000 jednotek)
+    určuje, kde se mraky vyskytují a jak jsou vysoké. Jeho práh lze měnit
+    klávesami \texttt{[} a~\texttt{]}. Hory nutí vzduch stoupat, a proto se
+    nad nimi častěji tvoří oblaka (orografická oblačnost). V~jejich okolí
+    je proto práh mírně nižší a pokrytí navíc neklesne pod hodnotu, při které
+    vzniká roztrhaná oblačnost z~menších mraků, ani když je jinde jasno.
+    Tato úprava závisí na poloze ve světě, nikoliv na posunu větrem, takže
+    oblačnost zůstává nad horami, zatímco jednotlivé mraky jimi proplouvají.
+  \item \textbf{Výškový profil} -- mrak má plochou základnu a k~vrcholu,
+    jehož výška závisí na $w$, se zužuje.
+  \item \textbf{Základní tvar} -- Perlin-Worley šum (perioda 520 jednotek) se
+    vynásobí výškovým profilem a přemapuje tak, aby hodnoty pod $1 - w$ byly
+    nulové.
+  \item \textbf{Eroze detailem} -- Worleyho šum ve vyšší frekvenci (perioda 96)
+    ořeže okraje mraku; u~základny vytváří cáry, u~vrcholu nadýchané bubliny.
+\end{enumerate}
+
+Přemapování používá funkci $remap$ (\ref{eq:remap}).
+
+\begin{equation}
+  remap(v, l_0, h_0, l_1, h_1) = l_1 + \frac{(v - l_0)(h_1 - l_1)}{h_0 - l_0}
+  \label{eq:remap}
+\end{equation}
+
+Pokud pokrytí a výškový profil dávají nulovou hustotu, vrací se nula hned
+bez čtení dalších textur. Tím se levně přeskočí většina prázdného prostoru.
+
+Pohyb mraků nevyžaduje čtvrtý rozměr šumu. Jednotlivé vrstvy (pokrytí, tvar,
+detail) se posouvají ve směru větru různou rychlostí a tvar a detail navíc
+pomalu svisle. Protože se vrstvy vůči sobě posouvají, mraky během pohybu
+mění tvar, vznikají a zanikají.
+
+\subsection{Ray marching mraků}
+
+Směr paprsku se získá zpětnou projekcí bodu na blízké rovině (\ref{eq:unprojection}),
+kde $V_{rot}$ je pouze rotační část pohledové matice, $(x, y)$ jsou normalizované
+souřadnice zařízení (NDC) a $\vec{p}$ jsou homogenní souřadnice, které je třeba
+vydělit složkou $w$. Bez posunutí kamery v~matici je výsledek přímo směrem paprsku.
 
 \begin{equation}
   \begin{aligned}
-    d & = (y_{clouds} - y_{rayOrigin}) / y_{rayDirection}
+    \vec{p} & = (P \cdot V_{rot})^{-1} \cdot (x, y, -1, 1)^T \\
+    \vec{r} & = normalize(\vec{p}_{xyz} / p_w)
   \end{aligned}
+  \label{eq:unprojection}
+\end{equation}
+
+Vrstva mraků je vymezena dvěma vodorovnými rovinami. Při projekci paprsku
+pak může nastat devět různých případů zobrazených na obrázku
+\ref{fig:camera-possibilities}, v~závislosti na poloze kamery vůči vrstvě a směru
+paprsku. Vzdálenosti průsečíků s~oběma rovinami se získají z~rovnice
+\ref{eq:ray-distance}. Úsek paprsku uvnitř vrstvy se dále omezí vzdáleností
+terénu a maximální vzdáleností 9000 jednotek.
+
+\begin{equation}
+  d = (y_{\text{roviny}} - y_{\text{počátek}}) / y_{\text{směr}}
   \label{eq:ray-distance}
 \end{equation}
 
@@ -220,27 +307,150 @@ potřebných k~ray marchingu.
   \label{fig:camera-possibilities}
 \end{figure}
 
-Při průchodu se z~hustoty mraků v~vzorkovaném místě akumuluje průhlednost,
-paprskek v tomto případě postupuje stále stejným směrem
-(modrá šipka na obrázku \ref{fig:cloud-marching}).
-Po překročení práhu průhlednosti $1.0$ je mrak považován za zcela neprůhledný
-a iterace je ukončena.
+Délka úseku se velmi liší: při pohledu vzhůru je to zhruba 120 jednotek, při
+pohledu k~obzoru tisíce jednotek. Počet kroků je proto úměrný délce úseku,
+v~rozmezí 24 až 100. Při rovnoměrném rozložení kroků by ale dlouhé paprsky měly
+hrubé kroky i~v~blízkosti kamery a blízké mraky by z~nich mizely. Kroky jsou
+proto rozloženy logaritmicky (\ref{eq:log-steps}): hustě u~kamery a řídce
+v~dálce. $t_0$ a~$t_1$ jsou meze úseku, $c = 20$ zamezuje příliš krátkým krokům
+u~kamery a $\xi \in [0, 1)$ je posun vzorků.
 
-Dále je třeba zjistit světlost mraku. V~ideálním případě bychom vyslali
-v~každém vzorkovaném bodě předchozího kroku paprsek směrem ke slunci,
-a~kromě akumulace průhlednosti bychom míchali úroveň světlosti.
-Pro výpočet v~reálném čase je to příliš náročné a proto je vyslán pouze
-jeden paprsek (červená šipka na obrázku \ref{fig:cloud-marching}) směrem ke slunci,
-který zjistí kolik světla mrak v~daném místě propouští. Tato aproximace může
-v~případě, kdy první paprsek protíná dva mraky přičemž první je částečně průhledný
-a světlý zatímco druhý je tmavý. Tmavá barva druhého mraku je nahrazena světlou
-barvou mraku prvního.
+\begin{equation}
+  \begin{aligned}
+    t_i & = (t_0 + c) \, e^{k(i + \xi)} - c \\
+    k & = \frac{1}{N} \ln \frac{t_1 + c}{t_0 + c}
+  \end{aligned}
+  \label{eq:log-steps}
+\end{equation}
+
+Posun $\xi$ je pro každý pixel jiný (\textit{interleaved gradient noise}
+\cite{jimenez2014}). Pravidelné vzorkování by jinak vytvářelo viditelné pruhy.
+Posun se v~čase nemění, protože bez časové akumulace snímků by blikal.
+
+\subsection{Osvětlení}
+
+Slunce svítí z~výšky přibližně $22^\circ$ nad obzorem, mraky jsou proto
+osvětleny ze strany. Pro každý vzorek s~nenulovou hustotou se vyšle krátký
+paprsek směrem ke slunci (5 kroků rostoucí délky) a z~hustoty podél něj se
+spočítá optická hloubka $\tau$. Osvětlení vzorku je pak součtem:
+
+\begin{itemize}
+  \item přímého světla slunce podle rovnice \ref{eq:multiscatter}, s~fázovou
+    funkcí složenou ze dvou Henyeyových--Greensteinových laloků
+    ($g = 0.65$ a~$g = -0.2$),
+  \item tzv. \textit{powder} efektu, který ztmavuje okraje mraků přivrácené
+    k~pozorovateli \cite{schneider2015},
+  \item ambientního světla oblohy, které roste s~výškou ve vrstvě
+    (spodek mraků je tmavší).
+\end{itemize}
+
+Světlo se podél paprsku akumuluje energeticky konzistentně
+(\ref{eq:integration}) \cite{hillaire2016}: příspěvek kroku je úměrný podílu
+světla, který se na kroku rozptýlil, nikoliv hustotě vzorku. $S_i$ je osvětlení
+vzorku a $T$ propustnost od kamery k~vzorku.
+
+\begin{equation}
+  \begin{aligned}
+    L & \mathrel{+}= T \cdot S_i \cdot \left(1 - e^{-\sigma_t \Delta s_i}\right) \\
+    T & \mathrel{*}= e^{-\sigma_t \Delta s_i}
+  \end{aligned}
+  \label{eq:integration}
+\end{equation}
+
+Jakmile propustnost klesne pod $0.01$, další vzorky už nic nezmění
+a ray marching se ukončí.
+
+\subsection{Složení obrazu}
+
+Výstupem compute shaderu je textura (RGBA16F), kde RGB je rozptýlené světlo
+a A~neprůhlednost $1 - T$, a druhá textura se vzdáleností scény, vůči které
+byl paprsek počítán. Fragment shader pak pro každý pixel v~plném rozlišení:
+
+\begin{enumerate}
+  \item Spočítá barvu oblohy (přechod od obzoru k~zenitu, záře kolem slunce,
+    disk slunce), nebo vezme barvu terénu.
+  \item Terén ztmaví stínem mraků. Propustnost ke slunci se odhadne ze tří
+    vzorků hustoty v~místech, kde paprsek od terénu ke slunci prochází vrstvou
+    mraků. Stín zeslabuje jen přímé sluneční světlo, světlo oblohy zůstává.
+    Fáze vykreslení terénu proto do alfa kanálu barvy ukládá podíl přímého
+    slunečního světla na osvětlení fragmentu.
+  \item Na terén aplikuje vzdušnou perspektivu $f = e^{-d/D}$ s~$D = 4000$:
+    vzdálené objekty splývají s~barvou oblohy. Stejný vztah se při ray marchingu
+    používá pro mraky, takže terén i~mraky mizí v~dálce stejně.
+  \item Zvětší texturu mraků na plné rozlišení se zohledněním hloubky.
+    Prosté bilineární zvětšení by na hranách terénu použilo mraky
+    spočítané pro sousední pixel s~jinou hloubkou (např. pro oblohu za
+    horou mrak spočítaný jen po horu), což vytváří světlé či tmavé lemy.
+    Proto se z~okolí $3 \times 3$ texelů vážením (\ref{eq:upsample}) vybírají
+    hlavně texely s~podobnou vzdáleností scény $d_c$ jako má pixel ($d$).
+  \item Složí mraky přes pozadí: $C = C_{\text{pozadí}} \cdot (1 - A) + L$.
+  \item Převede výslednou HDR barvu tone mappingem (aproximace ACES
+    \cite{url:narkowicz-aces}) a gama korekcí do rozsahu monitoru a přidá
+    nepatrný šum proti pruhům v~přechodu oblohy.
+\end{enumerate}
+
+\begin{equation}
+  \begin{aligned}
+    w_c & = \frac{e^{-2 |\Delta_c|^2}}{10^{-3} + r_c^2} \\
+    r_c & = \frac{|d_c - d|}{\min(d_c, d)}
+  \end{aligned}
+  \label{eq:upsample}
+\end{equation}
+
+$\Delta_c$ je vzdálenost středu texelu od pixelu v~texelech nízkého rozlišení.
+
+\subsection{Odezva ovládání}
+
+Grafický ovladač může nechat procesor předběhnout grafickou kartu o~několik
+snímků. Pokud je vykreslení snímku pomalé, obraz pak zaostává za vstupem
+a kamera se například pohybuje ještě chvíli po uvolnění klávesy. Po každém
+snímku se proto vloží \textit{fence} a před dalším snímkem se čeká na dokončení
+snímku předchozího, procesor tedy předbíhá nejvýše o~jeden snímek. Stav kláves
+se čte každý snímek funkcí \texttt{SDL\_GetKeyboardState}, místo sledování
+jednotlivých událostí stisku a uvolnění.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Původní řešení a jeho chyby} \label{sec:original}
+
+Původní verze projektu (obrázek \ref{fig:original}) dosahovala na grafické kartě
+nVidia GeForce GTX 680M rychlosti 9 snímků za sekundu a na integrované
+Intel UHD Graphics 620 15 až 19 snímků za sekundu. Hlavní chyby byly:
+
+\begin{itemize}
+  \item \textbf{Šum počítaný při ray marchingu.} 4D hodnotový šum (čas jako
+    čtvrtý rozměr) s~kosinovou interpolací se počítal pro každý vzorek
+    znovu. Na jeden vzorek hustoty to bylo 5 oktáv po 16 hashích a 15 interpolacích,
+    a vzorků bylo až 150 na pixel plus až 100 na paprsku ke slunci.
+  \item \textbf{Nesprávný typ šumu.} Fraktální hodnotový šum (chybně označený
+    jako Perlinův) tvoří rovnoměrné \uv{kouřové} útvary. Chybělo pokrytí,
+    výškový profil a Worleyho šum, které dávají mrakům tvar kupy.
+  \item \textbf{Lineární akumulace neprůhlednosti.} Neprůhlednost byla prostým
+    součtem hustot a nezávisela na délce kroku, místo Beerova--Lambertova
+    zákona.
+  \item \textbf{Osvětlení jedním paprskem.} Světlost celého pixelu určoval
+    jediný paprsek ke slunci z~místa, kde neprůhlednost překročila práh.
+    Chyběla fázová funkce a vícenásobný rozptyl, slunce bylo přímo v~zenitu.
+    Paprsek ke slunci navíc předával šumu místo času vzdálenost na paprsku,
+    takže osvětlení odpovídalo mraku v~jiném čase.
+  \item \textbf{Omezený dohled.} Pevný krok 1.7 a 150 kroků omezovaly
+    mraky na vzdálenost přibližně 255 jednotek. Přeskočení prostoru pod vrstvou
+    mraků sice ušetřilo iterace, ale dohled neprodloužilo.
+  \item \textbf{Nepřesná zpětná projekce.} Ve výpočtu směru paprsku chybělo
+    dělení složkou $w$ a odečtení pozice kamery. Výsledek byl přibližně správný
+    jen díky vzdálené zadní rovině ($10^5$) a kameře blízko počátku. Blízká rovina
+    $0.001$ navíc způsobovala ztrátu přesnosti.
+  \item \textbf{Chyby implementace.} Mezi compute shaderem a čtením jeho
+    výstupu chyběla bariéra (\texttt{glMemoryBarrier}), skládání obrazu kreslilo
+    6 indexů z~bufferu se 4 indexy a snímky nebyly synchronizovány s~grafickou
+    kartou, což způsobovalo zpoždění ovládání. Překlad probíhal bez optimalizací.
+\end{itemize}
 
 \begin{figure}
   \centering
-  \includegraphics[width=7cm,keepaspectratio]{img/cloud-marching}
-  \caption{Výpočet průhlednosti a světlosti mraku.}
-  \label{fig:cloud-marching}
+  \includegraphics[width=12cm,keepaspectratio]{img/PGP-Clouds-01}
+  \caption{Výstup původní verze aplikace.}
+  \label{fig:original}
 \end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -251,21 +461,56 @@ barvou mraku prvního.
 % vidění, tak by tady měl byt screenshot, ze ktereho bude poznat jak to funguje.
 % K tomu by měla být idealně tabulka s vyhodnocením jak přesně/rychle to funguje.
 
-Podařilo se vytvořit algoritmus, který metodou ray marching vykresluje
-mraky vygenerované z~4D perlinova šumu. Mraky nevypadají příliš reálně, ale
-to už je spíše záležitost nastavení různých parametrů, než zásadními změnami
-v~algoritmu.
+Výstup aplikace je na obrázcích \ref{fig:app-ground}, \ref{fig:app-above}
+a~\ref{fig:app-mountains}. Mraky mají plochou základnu, osvětlené vrcholy
+a stinné spodky, sahají až k~obzoru a při pohledu proti slunci mají zářivé
+okraje. Pohybují se ve větru a během pohybu mění tvar. Kamerou lze mraky
+volně prolétnout.
 
 \begin{figure}
   \centering
-  \includegraphics[width=15cm,keepaspectratio]{img/PGP-Clouds-01}
-  \caption{Ukázka výstupu aplikace.}
-  \label{fig:app-demo}
+  \includegraphics[width=14cm,keepaspectratio]{img/clouds-ground}
+  \caption{Mraky při pohledu ze země.}
+  \label{fig:app-ground}
 \end{figure}
 
-Aplikace byla testována na grafické kartě \textbf{nVidia GeForce 680m GTX}.
-Na této grafické kartě běžela aplikace při rozlišení $1200 \times 800$ průměrně
-rychlostí \textbf{9 snímků za sekundu}, nejedná se tedy o~real-time vykreslování.
+\begin{figure}
+  \centering
+  \includegraphics[width=14cm,keepaspectratio]{img/clouds-above}
+  \caption{Pohled nad vrstvou mraků.}
+  \label{fig:app-above}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=14cm,keepaspectratio]{img/clouds-mountains}
+  \caption{Hory zasahující do vrstvy mraků.}
+  \label{fig:app-mountains}
+\end{figure}
+
+Rychlost byla měřena na integrované grafické kartě \textbf{Intel UHD Graphics 620}
+(ovladač Mesa 26.2) v~rozlišení $1200 \times 800$ bez vertikální synchronizace
+(tabulka \ref{tab:performance}). V~běžném režimu je zapnuta vertikální
+synchronizace a~aplikace je omezena obnovovací frekvencí monitoru.
+
+\begin{table}
+  \centering
+  \begin{tabular}{lrr}
+    \hline
+    Pohled & původní verze & současná verze \\
+    \hline
+    ze země & 15--19 & 40--43 \\
+    proti slunci & -- & 42 \\
+    nad vrstvou mraků & -- & 46--47 \\
+    mezi mraky u~hor & -- & 45--46 \\
+    \hline
+  \end{tabular}
+  \caption{Počet snímků za sekundu na Intel UHD Graphics 620, $1200 \times 800$.
+    Původní verze vykreslovala mraky ve čtvrtinovém rozlišení (na osu),
+    současná v~polovičním a s~terénem do vzdálenosti 8000 jednotek
+    (původně přibližně 150).}
+  \label{tab:performance}
+\end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -273,12 +518,24 @@ rychlostí \textbf{9 snímků za sekundu}, nejedná se tedy o~real-time vykreslo
 
 % Tady by mělo být stručně napsané jak to funguje.
 
-Výsledná aplikace není příliš optimalizovaná. Rozdělením procesu vykreslování
-mraků na více fází (uložení šumu do 3D textury, výpočet světlosti v~textuře,
-vykreslení mraků průchodem texturou) nebo použitím statických dat by bylo možné
-zvýšit rychlost vykreslování a také se zbavit některých nedostatků.
+Přepracovaná aplikace vykresluje volumetrické mraky v~reálném čase i~na
+integrované grafické kartě. Rozhodující bylo uložit šum do 3D textury, modelovat
+tvar mraků pokrytím, výškovým profilem a Worleyho šumem a počítat průchod světla
+podle Beerova--Lambertova zákona s~fázovou funkcí.
+
+Možná další vylepšení:
+
+\begin{itemize}
+  \item Časová akumulace (\textit{temporal reprojection}): každý snímek by
+    počítal jen část pixelů nebo vzorků a posun $\xi$ by se mohl měnit v~čase,
+    což by odstranilo šum v~dálce a zvýšilo rychlost.
+  \item Zastínění slunce terénem: hory zatím nevrhají stín na mraky ani na
+    okolní terén.
+  \item Pohyb slunce a s~ním spojená změna barvy oblohy a mraků (západ slunce).
+\end{itemize}
 
 \nocite{url:clouds-wakapon}
+\nocite{url:wiki-perlin-noise}
 
 \bibliographystyle{czechiso}
 \begin{flushleft}

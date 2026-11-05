@@ -27,7 +27,30 @@ string BaseShaderProgram::getFileContents(string &filename) {
         throw string("Could not load file '" + filename + "'.");
     }
 
-    return string(istream_iterator<char>(fileStream >> noskipws), istream_iterator<char>());
+    // Minimal support for `#include "file"` (relative to the including file).
+    string dir;
+    size_t slash = filename.find_last_of('/');
+    if (slash != string::npos) {
+        dir = filename.substr(0, slash + 1);
+    }
+
+    string result, line;
+    while (getline(fileStream, line)) {
+        size_t pos = line.find_first_not_of(" \t");
+        if (pos != string::npos && line.compare(pos, 8, "#include") == 0) {
+            size_t open = line.find('"', pos);
+            size_t close = line.find('"', open + 1);
+            if (open != string::npos && close != string::npos) {
+                string included = dir + line.substr(open + 1, close - open - 1);
+                result += getFileContents(included);
+                continue;
+            }
+        }
+        result += line;
+        result += '\n';
+    }
+
+    return result;
 }
 
 GLuint BaseShaderProgram::createShaderFromSource(string &source, GLenum type) {

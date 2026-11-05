@@ -2,7 +2,7 @@ CXX=g++
 LIBS=gl sdl2 glew
 LDLIBS=$(shell pkg-config --libs-only-l $(LIBS))
 LDFLAGS=$(shell pkg-config --libs-only-L --libs-only-other $(LIBS))
-CXXFLAGS=--std=c++11 -g -Wall -DGLM_FORCE_RADIANS $(shell pkg-config --cflags $(LIBS))
+CXXFLAGS=--std=c++11 -g -O2 -Wall -MMD -MP -DGLM_FORCE_RADIANS -DGLM_ENABLE_EXPERIMENTAL $(shell pkg-config --cflags $(LIBS))
 BUILDDIR=build
 BINDIR=bin
 OBJ=$(addprefix $(BUILDDIR)/, Main.o Camera.o Landscape.o BaseShaderProgram.o \
@@ -30,3 +30,5 @@ $(BINDIR):
 
 clean:
 	$(RM) $(BUILDDIR) $(BINDIR) .clang_complete
+
+-include $(OBJ:.o=.d)

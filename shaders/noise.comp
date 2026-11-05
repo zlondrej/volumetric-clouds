@@ -1,0 +1,37 @@
+#version 430
+
+// Generates a tileable 3D noise texture used for cloud shapes.
+//   R   - Perlin-Worley noise
+//   GBA - Worley FBM at increasing frequencies
+
+#include "noise-functions.glsl"
+
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+writeonly layout(rgba8) uniform image3D noiseIm;
+uniform int zOffset = 0;
+
+void main() {
+    ivec3 size = imageSize(noiseIm);
+    ivec3 id = ivec3(gl_GlobalInvocationID) + ivec3(0, 0, zOffset);
+
+    if (any(greaterThanEqual(id, size))) {
+        return;
+    }
+
+    vec3 uvw = (vec3(id) + 0.5) / vec3(size);
+
+    float p = perlinFbm(uvw, 4.0, 4);
+    float w = worleyFbm(uvw, 4.0);
+    float perlinWorley = clamp((p - (w - 1.0)) / (2.0 - w), 0.0, 1.0);
+    perlinWorley = clamp((perlinWorley - 0.35) / 0.65, 0.0, 1.0);
+
+    vec4 result = vec4(
+        perlinWorley,
+        worleyFbm(uvw, 4.0),
+        worleyFbm(uvw, 8.0),
+        worleyFbm(uvw, 16.0)
+    );
+
+    imageStore(noiseIm, id, result);
+}

@@ -1,372 +1,172 @@
 #version 430
 
-#define UINT_MAX 4294967295U
-#define PI 3.141592653589793
+#include "common.glsl"
 
-readonly layout(r32f) uniform image2D depthIm;
-writeonly layout(rgba8) uniform image2D cloudIm;
-writeonly layout(r32f) uniform image2D cloudDepthIm;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+uniform sampler2D depthTex;                    // full resolution scene distance
+writeonly layout(rgba16f) uniform image2D cloudIm;   // rgb = in-scattered light, a = 1 - transmittance
+writeonly layout(r32f) uniform image2D cloudDepthIm; // scene distance the ray was marched against
 
 uniform vec3 eyePosition;
-uniform vec3 sunPosition = vec3(0.0, 1e10, 0.0);
-uniform vec4 sunColor = vec4(1.0, 1.0, 1.0, 0.9); // a component is for intensity
-uniform float time = 0;
-
-// Inverse view projection matrix
 uniform mat4 invVP;
 
-float lowerLayer = 75;
-float upperLayer = 175;
-float layerEase = 25;
-float layerOffset = 7.5;
+const float maxDistance = 9000.0;
+const int maxSteps = 100;
+const int minSteps = 24;
+const float extinction = 0.09;     // per world unit at density 1
+const float lightAbsorption = 1.0;  // >1 makes self-shadowing stronger
+const float densityScale = 5.0;
+const float pixelAngle = 0.0035;   // approximate angular size of a low-res pixel
 
-float maxDistance = 750;
-float distanceEase = 150;
-int stepCount = 150;
+float interleavedGradientNoise(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
 
-float timeFactor = 0.012;
+float henyeyGreenstein(float cosTheta, float g) {
+    float g2 = g * g;
+    return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
+}
 
-// Ray structure
-struct Ray{
-  vec3 origin;
-  vec3 direction;
-};
+/** Optical depth towards the sun. */
+float lightMarch(vec3 p, float footprint) {
+    const int lightSteps = 5;
+    float h = (p.y - cloudBottom) / cloudThickness;
+    // Distance to the top of the layer along the sun direction, limited.
+    float dist = min((cloudTop - p.y) / max(sunDirection.y, 0.05), cloudThickness * 1.2);
+    float od = 0.0;
+    float t = 0.0;
+    float ds = dist / 15.0;   // geometric progression 1,2,3,4,5 -> sums to 15
+    for (int i = 0; i < lightSteps; i++) {
+        float stepLen = ds * float(i + 1);
+        t += stepLen * 0.5;
+        vec3 lp = p + sunDirection * t;
+        od += cloudDensity(lp, max(footprint, stepLen * 0.25), i < 2) * stepLen;
+        t += stepLen * 0.5;
+    }
+    return od * densityScale * extinction * lightAbsorption;
+}
 
-vec4 marchClouds(Ray, inout float);
-float marchBrightness(vec4);
+/** Returns vec2(tNear, tFar) of the ray segment inside the cloud slab. */
+vec2 slabIntersect(vec3 ro, vec3 rd) {
+    if (abs(rd.y) < 1e-5) {
+        if (ro.y > cloudBottom && ro.y < cloudTop) {
+            return vec2(0.0, maxDistance);
+        }
+        return vec2(-1.0);
+    }
+    float t0 = (cloudBottom - ro.y) / rd.y;
+    float t1 = (cloudTop - ro.y) / rd.y;
+    float tn = max(min(t0, t1), 0.0);
+    float tf = max(t0, t1);
+    return vec2(tn, tf);
+}
 
-float hash(int);
-float hash(ivec2);
-float hash(ivec3);
-float hash(ivec4);
-
-float noise(float);
-float noise(vec2);
-float noise(vec3);
-float noise(vec4);
-
-float mixCos(float, float, float);
-
-float mixQuad(mat2, vec2);
-float mixCube(mat2, mat2, vec3);
-
-float cloudMap(vec4);
-
-/**
- * Calculates distance in which ray has given height.
- */
-float distanceToLayer(Ray, float);
-
-int downsample = 0;
-
-layout (local_size_x = 16, local_size_y = 4, local_size_z = 1) in;
 void main() {
-
-    uint x = gl_GlobalInvocationID.x;
-    uint y = gl_GlobalInvocationID.y;
-
-    ivec2 screenSize = imageSize(depthIm);
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
     ivec2 cloudSize = imageSize(cloudIm);
 
-    downsample = int(ceil(float(screenSize.x) / float(cloudSize.x)));
-
-    if(x >= cloudSize.x || y >= cloudSize.y) {
-      return;
+    if (id.x >= cloudSize.x || id.y >= cloudSize.y) {
+        return;
     }
 
-    vec2 fCoords = vec2(x,y) / vec2(cloudSize);
-    ivec2 iDCoords = ivec2(x,y);
-    ivec2 iCoords = ivec2(x,y) * downsample;
+    ivec2 screenSize = textureSize(depthTex, 0);
+    ivec2 scale = (screenSize + cloudSize - 1) / cloudSize;
+    ivec2 fullCoords = min(id * scale + scale / 2, screenSize - 1);
 
-    vec3 rayDir = normalize((invVP*vec4(fCoords*2-1, 1, 1)).xyz);
+    float sceneDepth = texelFetch(depthTex, fullCoords, 0).r;
 
-    // We take center of downsampled block.
-    vec4 d = imageLoad(depthIm, iCoords + ivec2(downsample/2));
+    vec2 ndc = (vec2(fullCoords) + 0.5) / vec2(screenSize) * 2.0 - 1.0;
+    vec4 nearPoint = invVP * vec4(ndc, -1.0, 1.0);
+    vec3 rd = normalize(nearPoint.xyz / nearPoint.w);
+    vec3 ro = eyePosition;
 
-    float depthF = d.x;
-    vec4 cl = marchClouds(Ray(eyePosition, rayDir),depthF);
-    d.x = depthF;
+    vec2 seg = slabIntersect(ro, rd);
+    float tStart = seg.x;
+    float tEnd = min(min(seg.y, sceneDepth), maxDistance);
 
-    imageStore(cloudIm, iDCoords, cl);
-    imageStore(cloudDepthIm, iDCoords, d);
+    vec3 scattered = vec3(0.0);
+    float transmittance = 1.0;
 
-    // 1D Noise
-    // c = vec4(noise((iCoords.x + eyePosition.x)/32.0));
-    // 2D Noise
-    // c = vec4(noise(vec2(iCoords+eyePosition.xy)/32.0));
-    // 3D Noise
-    // c = vec4(noise((vec3(iCoords,0.0) + eyePosition)/32.0));
-    // 4D Noise
-    // c = vec4(noise(vec4(vec3(iCoords,0.0) + eyePosition, time)/128.0)/3.0);
-    // Depth texture
-    // c = vec4(d.xxx / 300.0, 1.0);
-}
+    if (tEnd > tStart) {
+        float len = tEnd - tStart;
+        int steps = int(clamp(len / 3.0, float(minSteps), float(maxSteps)));
 
-vec4 marchClouds(Ray r, inout float depth) {
-    float maxDist = min(depth,maxDistance);
-    vec3 position = r.origin;
-    float closeDistance, farDistance;
-    float alpha = 0.0;
-    float brightness = 1;
-    float step;
-    float t = time * timeFactor;
+        // Samples are distributed logarithmically: dense near the camera,
+        // sparse far away. With uniform steps, long (near horizontal) rays
+        // got very coarse steps even close to the camera, which made nearby
+        // clouds disappear in a horizontal band.
+        const float logOffset = 20.0;
+        float sStart = tStart + logOffset;
+        float k = log((tEnd + logOffset) / sStart) / float(steps);
+        float stepGrowth = exp(k) - 1.0;
 
-    float distToUpper = distanceToLayer(r, upperLayer);
-    float distToLower = distanceToLayer(r, lowerLayer);
+        float cosTheta = dot(rd, sunDirection);
+        // Dual-lobe phase function: strong forward scattering (silver lining) + some back scatter.
+        float phase = mix(henyeyGreenstein(cosTheta, 0.65), henyeyGreenstein(cosTheta, -0.2), 0.45);
+        phase = phase * 4.0 * PI * 0.8 + 0.1;
 
-    depth = 1e15;
+        // Static per-pixel jitter hides banding from the step size. (Animating it
+        // would need temporal accumulation, otherwise it flickers.)
+        float jitter = interleavedGradientNoise(vec2(id));
 
-    if(r.origin.y < lowerLayer) {
-        closeDistance = distToLower;
-        farDistance = distToUpper;
-    } else if(r.origin.y > upperLayer) {
-        closeDistance = distToUpper;
-        farDistance = distToLower;
-    } else {
-        closeDistance = 0;
-        farDistance = max(distToLower, distToUpper);
-    }
+        float weightedDepth = 0.0;
+        float weightSum = 0.0;
 
-    farDistance = max(farDistance, maxDistance);
+        for (int i = 0; i < steps; i++) {
+            float s = sStart * exp(k * (float(i) + jitter));
+            float t = s - logOffset;
+            float stepSize = s * stepGrowth;
 
-    if(closeDistance >= maxDist || closeDistance < 0) {
-        // Terrain is closer than cloud layer or ray is going away.
-        return vec4(1,1,1,0);
-    }
+            vec3 p = ro + rd * t;
+            // Texture LOD follows the pixel size. Basing it on the step size
+            // blurs the noise so much that clouds fall under the coverage
+            // threshold and vanish.
+            float footprint = max(t * pixelAngle, stepSize * 0.25);
+            float density = cloudDensity(p, footprint, true);
 
+            if (density > 0.003) {
+                float sigma = density * densityScale * extinction;
+                float h = (p.y - cloudBottom) / cloudThickness;
 
-    step = 1.7; //(closeDistance - farDistance) / stepCount;
+                float lightOD = lightMarch(p, footprint);
 
-    depth = closeDistance;
+                // Approximate multiple scattering with a few octaves (Wrenninge et al.).
+                vec3 sunLight = vec3(0.0);
+                float a = 1.0, b = 1.0;
+                for (int o = 0; o < 3; o++) {
+                    sunLight += a * exp(-lightOD * b) * phase;
+                    a *= 0.5;
+                    b *= 0.5;
+                }
+                // "Powder" effect darkens edges facing the viewer.
+                float powder = 1.0 - exp(-sigma * 40.0);
+                sunLight *= sunColor * mix(1.0, powder, 0.5);
 
-    float alphaMod = clamp((maxDistance - depth) / (distanceEase), 0.0, 1.0);
+                vec3 ambient = ambientColor(h) * (0.12 + 0.4 * h);
 
-    int fastStep = int(ceil(closeDistance/step));
-    vec3 initPos = r.origin;
+                float stepTransmittance = exp(-sigma * stepSize);
+                vec3 light = sunLight + ambient;
+                scattered += transmittance * light * (1.0 - stepTransmittance);
 
-    bool thresholdPassed = false;
-    for(int i = fastStep; i < stepCount; i++) {
-        position = initPos + (r.direction * (step * i));
+                float w = transmittance * (1.0 - stepTransmittance);
+                weightedDepth += t * w;
+                weightSum += w;
 
-        if(position.y < lowerLayer || position.y > upperLayer) {
-            continue;
+                transmittance *= stepTransmittance;
+                if (transmittance < 0.01) {
+                    break;
+                }
+            }
         }
 
-        alpha += cloudMap(vec4(position, t));
-
-        if ((!thresholdPassed) && alpha > 0.15) {
-            depth = step * i;
-            brightness = marchBrightness(vec4(position, t));
-            thresholdPassed = true;
-        }
-
-        if(alpha >= 1.0) {
-            break;
-        }
-        // step += 0.5;
+        // Aerial perspective: far clouds fade into the sky.
+        float cloudDist = weightSum > 0.0 ? weightedDepth / weightSum : tEnd;
+        float fog = exp(-cloudDist / hazeDistance);
+        vec3 sky = skyColor(rd);
+        scattered = mix(sky * (1.0 - transmittance), scattered, fog);
     }
 
-    brightness = clamp(brightness + (1-alpha)*(1-alpha), 0.0, 1.0);
-
-
-    return clamp(vec4(brightness, brightness, brightness, alpha*alphaMod), 0.0, 1.0);
-}
-
-float marchBrightness(vec4 p) {
-    // sunPosition
-    Ray r;
-    r.origin = p.xyz;
-    r.direction = normalize(sunPosition.xyz - r.origin);
-
-    float closeDistance, farDistance;
-    float distToUpper = distanceToLayer(r, upperLayer);
-    float distToLower = distanceToLayer(r, lowerLayer);
-
-    float step = 1.0;
-    float brightness = 1.0;
-    float density;
-    float decrease = 0.45;
-
-    vec3 position;
-    for(float t = max(0.0, distToLower); t < distToUpper; t += step) {
-        position = r.origin + (r.direction * t);
-
-        density = cloudMap(vec4(position, t));
-
-        brightness -= decrease*density;
-
-        decrease *= 0.95;
-    }
-
-    return brightness;
-}
-
-float cloudMap(vec4 p) {
-    vec4 q = p + vec4(0.7, 0.0, 0.44, 0.0)*p.w*25.0;
-    float upperEase, lowerEase, ease;
-    float f;
-      f  = 0.25000*noise( q / 256.0 );
-      f += 0.35000*noise( q / 128.0 );
-      f += 0.22500*noise( q / 64.0 );
-      f -= 0.22500*noise( q / 48.0 ) / 2.0;
-      f += 0.06250*noise( q / 32.0 );
-
-    upperEase = clamp((upperLayer - layerOffset - q.y) / (layerEase), 0.0, 1.0);
-    lowerEase = clamp((q.y - lowerLayer - layerOffset) / (layerEase), 0.0, 1.0);
-
-    ease = 1 - abs(upperEase - lowerEase);
-
-    return clamp( f*1.35 - 0.5, 0.0, 1.0 ) * ease;
-}
-
-float hash(int q) {
-  q = (q * q) + 77433;
-  uint n = uint(q * 37);
-
-  return (((((n * 3342687u + 1144763u) & uint(0xf2fcf7dd)) - 77663544) * -113) * n) / float(UINT_MAX);
-}
-
-float hash(ivec2 q) {
-  int h = 0;
-  h += q.x * 79 + 74344645;
-  h += q.y * 317 - 6324441;
-  return hash(h);
-}
-
-float hash(ivec3 q) {
-  int h = 0;
-  h += q.x * 7779 + 764343;
-  h += q.y * 312217 - 63654641;
-  h += q.z * 124547 + 9963;
-  return hash(h);
-}
-
-float hash(ivec4 q) {
-  int h = 0;
-  h += q.x * 79 + 743;
-  h += q.y * 317 - 631;
-  h += q.z * 1247 + 9963;
-  h += q.w * -436 - 25;
-  return hash(h);
-}
-
-float noise(float q) {
-  int q0 = int(floor(q));
-  int q1 = q0 + 1;
-
-  float r = q - float(q0);
-
-  float a = hash(q0);
-  float b = hash(q1);
-
-  return mixCos(a, b, r);
-}
-
-float noise(vec2 q) {
-  ivec2 q0 = ivec2(floor(q));
-  ivec2 q1 = q0 + 1;
-
-  vec2 r = q - vec2(q0);
-
-  float a = hash(q0);
-  float b = hash(ivec2(q1.x, q0.y));
-  float c = hash(q1);
-  float d = hash(ivec2(q0.x, q1.y));
-
-  mat2 quad = mat2(vec2(a,b),vec2(c,d));
-
-  return mixQuad(quad, r);
-}
-
-float noise(vec3 q) {
-  ivec3 q0 = ivec3(floor(q));
-  ivec3 q1 = q0 + 1;
-
-  vec3 r = q - vec3(q0);
-
-  float a = hash(ivec3(q0.x, q0.y, q0.z));
-  float b = hash(ivec3(q1.x, q0.y, q0.z));
-  float c = hash(ivec3(q1.x, q1.y, q0.z));
-  float d = hash(ivec3(q0.x, q1.y, q0.z));
-
-  mat2 abcdQ = mat2(vec2(a,b),vec2(c,d));
-
-  float e = hash(ivec3(q0.x, q0.y, q1.z));
-  float f = hash(ivec3(q1.x, q0.y, q1.z));
-  float g = hash(ivec3(q1.x, q1.y, q1.z));
-  float h = hash(ivec3(q0.x, q1.y, q1.z));
-
-  mat2 efghQ = mat2(vec2(e,f),vec2(g,h));
-
-  return mixCube(abcdQ, efghQ, r);
-}
-
-float noise(vec4 q) {
-
-  ivec4 q0 = ivec4(floor(q));
-  ivec4 q1 = q0 + 1;
-
-  vec4 r = q - vec4(q0);
-
-  float a = hash(ivec4(q0.x, q0.y, q0.z, q0.w));
-  float b = hash(ivec4(q1.x, q0.y, q0.z, q0.w));
-  float c = hash(ivec4(q1.x, q1.y, q0.z, q0.w));
-  float d = hash(ivec4(q0.x, q1.y, q0.z, q0.w));
-
-  mat2 abcdQ = mat2(vec2(a,b),vec2(c,d));
-
-  float e = hash(ivec4(q0.x, q0.y, q1.z, q0.w));
-  float f = hash(ivec4(q1.x, q0.y, q1.z, q0.w));
-  float g = hash(ivec4(q1.x, q1.y, q1.z, q0.w));
-  float h = hash(ivec4(q0.x, q1.y, q1.z, q0.w));
-
-  mat2 efghQ = mat2(vec2(e,f),vec2(g,h));
-
-  float cubeA = mixCube(abcdQ, efghQ, r.xyz);
-
-  float i = hash(ivec4(q0.x, q0.y, q0.z, q1.w));
-  float j = hash(ivec4(q1.x, q0.y, q0.z, q1.w));
-  float k = hash(ivec4(q1.x, q1.y, q0.z, q1.w));
-  float l = hash(ivec4(q0.x, q1.y, q0.z, q1.w));
-
-  mat2 ijklQ = mat2(vec2(i,j),vec2(k,l));
-
-  float m = hash(ivec4(q0.x, q0.y, q1.z, q1.w));
-  float n = hash(ivec4(q1.x, q0.y, q1.z, q1.w));
-  float o = hash(ivec4(q1.x, q1.y, q1.z, q1.w));
-  float p = hash(ivec4(q0.x, q1.y, q1.z, q1.w));
-
-  mat2 mnopQ = mat2(vec2(m,n),vec2(o,p));
-
-  float cubeB = mixCube(ijklQ, mnopQ, r.xyz);
-
-  return mixCos(cubeA, cubeB, r.w);
-}
-
-float mixCos(float x, float y, float a) {
-    a = (1 - cos(a * PI)) * 0.5;
-
-    return mix(x,y,a);
-}
-
-float mixQuad(mat2 m, vec2 p) {
-  float ab = mixCos(m[0][0],m[0][1],p.x);
-  float dc = mixCos(m[1][1],m[1][0],p.x);
-
-  return mixCos(ab, dc, p.y);
-}
-
-float mixCube(mat2 m1, mat2 m2, vec3 p) {
-  float abcd = mixQuad(m1, p.xy);
-  float efgh = mixQuad(m2, p.xy);
-
-  return mixCos(abcd, efgh, p.z);
-}
-
-float distanceToLayer(Ray r, float height) {
-    if(r.direction.y == 0) { // Haha, but just in case.
-        return -1.0;
-    }
-
-    return (height - r.origin.y) / r.direction.y;
+    imageStore(cloudIm, id, vec4(scattered, 1.0 - transmittance));
+    imageStore(cloudDepthIm, id, vec4(sceneDepth));
 }

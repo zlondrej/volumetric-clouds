@@ -11,11 +11,10 @@ nothing: # Nothing rule
 	$(PDFLATEX) "$*"
 
 %.pdf: %.svg
-	inkscape --export-pdf="$@" "$<"
+	inkscape --export-filename="$@" "$<"
 
 %.bbl: %.aux
 	$(BIBTEX) "$*"
-
 
 clean:
 	$(RM) $(addprefix *.,aux bbl blg log toc nav out snm)

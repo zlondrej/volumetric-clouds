@@ -15,6 +15,7 @@ void sigintHandler(int signal) {
 
 int main(int argc, char **argv) {
     signal(SIGINT, sigintHandler);
+    signal(SIGTERM, sigintHandler);
 
     try {
         program.init();
@@ -42,7 +43,7 @@ void glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLs
     }
 }
 
-Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL), landscape(NULL) {
+Main::Main() : sdlWindow(NULL), context(NULL), camera(NULL), landscape(NULL), clouds(NULL) {
 }
 
 Main::~Main() {
@@ -88,7 +89,25 @@ drop:
 
         runRenderers();
 
+
+
+
+
+
+
+
+
         SDL_GL_SwapWindow(sdlWindow);
+
+        // Don't let the CPU run ahead of the GPU by more than one frame.
+        // Otherwise the driver queues several frames and the image on
+        // screen lags behind the input (e.g. the camera keeps moving
+        // after a key is released).
+        if (frameFence) {
+            glClientWaitSync(frameFence, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
+            glDeleteSync(frameFence);
+        }
+        frameFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
         frameCounter++;
 
@@ -133,6 +152,11 @@ void Main::init() {
 
     glewInit();
 
+    // Prefer adaptive vsync, fall back to regular vsync.
+    if (SDL_GL_SetSwapInterval(-1) != 0) {
+        SDL_GL_SetSwapInterval(1);
+    }
+
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
@@ -163,6 +187,11 @@ void Main::onQuit() {
     landscape = NULL;
     camera = NULL;
     clouds = NULL;
+
+    if (frameFence) {
+        glDeleteSync(frameFence);
+        frameFence = 0;
+    }
 
     SDL_DestroyWindow(sdlWindow);
     SDL_GL_DeleteContext(context);

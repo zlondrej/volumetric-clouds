@@ -16,20 +16,23 @@ namespace pgp {
         Camera *camera;
         Landscape *landscape;
         ComputeShaderProgram *computeProgram;
-        RenderShaderProgram blendProgram;
-        GLuint uDepth, uCloud, uCloudDepth;
-        GLuint uPosition, uTime;
-        GLuint uSunPosition, uSunColor;
-        GLuint uInvVP;
+        RenderShaderProgram *blendProgram;
 
-        GLuint cloudTexture, cloudDepthTexture;
+        GLint uDepth, uNoise, uWeather, uCloud, uCloudDepth;
+        GLint uPosition, uTime, uSunDirection, uCoverage;
+        GLint uInvVP;
 
-        GLuint aBlendPosition;
-        GLuint uFrontTexture, uBackTexture;
-        GLuint uFrontDepth, uBackDepth;
-        GLuint vao, vbo, ebo;
+        GLint uBlendSceneColor, uBlendSceneDepth;
+        GLint uBlendCloudColor, uBlendCloudDepth;
+        GLint uBlendNoise, uBlendWeather, uBlendPosition, uBlendInvVP;
+        GLint uBlendTime, uBlendSunDirection, uBlendCoverage;
+
+        GLuint cloudTexture, cloudDepthTexture, noiseTexture, weatherTexture;
+        GLuint vao;
 
         float time;
+        float coverage;
+
     public:
         Clouds(Camera *camera, Landscape *landscape);
         ~Clouds();
@@ -39,7 +42,10 @@ namespace pgp {
         virtual IEventListener::EventResponse onEvent(SDL_Event *evt);
 
     private:
-        void initComputeUniforms(GLuint program);
+        void loadShaders();
+        void allocateTextures();
+        void generateNoise();
+        void generateWeather();
     };
 
 }

@@ -11,19 +11,22 @@ namespace pgp {
     using glm::vec3;
     using glm::mat4;
 
+    /**
+     * Procedural terrain rendered as a set of nested grids (a simple geometry
+     * clipmap). Heights are computed on the GPU in the vertex shader.
+     */
     class Landscape : public IRenderer, public IProcessor, public IEventListener, public RegistrablesContainer {
     private:
         Camera *camera;
         RenderShaderProgram renderProgram;
-        GLuint vao, vbo, ebo;
+        GLuint vao, ebo;
         GLuint fbo, colTex, depTex;
         GLuint rbo;
         GLint uView, uProjection;
-        GLint uEyePosition, uSunPosition, uSunColor;
-        GLint aPosition, aNormal, aColor;
+        GLint uEyePosition, uSunDirection;
+        GLint uLevelOrigin, uSpacing, uGridSize, uDiscardRect;
         GLenum polygonMode;
-        vec3 center;
-        float *heightmap;
+        GLsizei indexCount;
     public:
         Landscape(Camera *camera);
 
@@ -41,6 +44,10 @@ namespace pgp {
             return fbo;
         }
 
+        inline vec3 getSunDirection() {
+            return glm::normalize(vec3(0.55, 0.38, 0.75));
+        }
+
         mat4 getProjectionMatrix();
         mat4 getViewMatrix();
 
@@ -49,21 +56,6 @@ namespace pgp {
         virtual void step(float time, float delta);
 
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
-
-    private:
-
-        static inline float parametrizedNoise(float x, float y, float xPeriod, float yPeriod, float amplitude) {
-            return smoothNoise2D(x * xPeriod, y * yPeriod) * amplitude;
-        }
-
-        static float smoothNoise2D(float x, float y);
-
-        static float noise2D(int x, int y);
-
-        static float interpolateCos(float a, float b, float factor);
-
-        void reloadTerrain();
-
     };
 
 }

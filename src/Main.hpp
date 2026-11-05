@@ -16,7 +16,8 @@ namespace pgp {
     protected:
         SDL_Window *sdlWindow;
         SDL_GLContext context;
-        bool quitFlag = false;
+        volatile bool quitFlag = false;
+        GLsync frameFence = 0;
         Camera *camera;
         Landscape *landscape;
         Clouds *clouds;

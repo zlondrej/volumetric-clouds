@@ -9,7 +9,7 @@
 using namespace pgp;
 using namespace glm;
 
-Camera::Camera(SDL_Window *_window) : position(0.0, 35.0, 0.0), rotation(0, 0), movement(0, 0, 0) {
+Camera::Camera(SDL_Window *_window) : position(0.0, 70.0, 0.0), rotation(-0.25, 0), movement(0, 0, 0) {
     window = _window;
     SDL_GetWindowSize(window, &(windowSize.x), &(windowSize.y));
 }
@@ -35,42 +35,6 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
 
             return EVT_PROCESSED;
         }
-    } else if (evt->type == SDL_KEYDOWN || evt->type == SDL_KEYUP) {
-        ivec3 positive, negative;
-        SDL_KeyboardEvent *e = &evt->key;
-
-        positive = max(ivec3(0, 0, 0), movement);
-        negative = -min(ivec3(0, 0, 0), movement);
-
-        int active = (evt->type == SDL_KEYDOWN) ? 1 : 0;
-
-        switch (e->keysym.sym) {
-            case SDLK_w:
-                positive.z = active;
-                break;
-            case SDLK_s:
-                negative.z = active;
-                break;
-            case SDLK_a:
-                positive.x = active;
-                break;
-            case SDLK_d:
-                negative.x = active;
-                break;
-            case SDLK_LSHIFT:
-                positive.y = active;
-                break;
-            case SDLK_LCTRL:
-                negative.y = active;
-                break;
-            default:
-                return EVT_IGNORED;
-        }
-
-        movement = positive - negative;
-
-        return EVT_PROCESSED;
-
     } else if (evt->type == SDL_MOUSEMOTION) {
         SDL_MouseMotionEvent *e = &evt->motion;
 
@@ -89,6 +53,18 @@ IEventListener::EventResponse Camera::onEvent(SDL_Event* evt) {
 }
 
 void Camera::step(float time, float delta) {
+    // Poll the current keyboard state every frame instead of tracking
+    // key events, so movement always reflects what is held right now.
+    const Uint8 *keys = SDL_GetKeyboardState(NULL);
+
+    movement = ivec3(
+            keys[SDL_SCANCODE_A] - keys[SDL_SCANCODE_D],
+            keys[SDL_SCANCODE_SPACE] - keys[SDL_SCANCODE_C],
+            keys[SDL_SCANCODE_W] - keys[SDL_SCANCODE_S]);
+
+    // Avoid huge jumps after a stall (e.g. window being dragged).
+    delta = min(delta, 0.1f);
+
     vec3 direction;
     if (movement.x == 0 && movement.z == 0) {
         direction = movement;
@@ -102,8 +78,10 @@ void Camera::step(float time, float delta) {
         direction = normalize(direction);
     }
 
-    // TODO: Add speed coeficient
-    position += direction * delta * 15.0f;
+    // Hold shift to move faster.
+    bool boost = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
+    float speed = boost ? 150.0f : 15.0f;
+    position += direction * delta * speed;
 }
 
 void Camera::render() {
