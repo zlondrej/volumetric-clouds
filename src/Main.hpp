@@ -36,6 +36,9 @@ namespace pgp {
         // Event listener interface
         virtual IEventListener::EventResponse onEvent(SDL_Event* evt);
 
+    private:
+        void setFullscreen(bool fullscreen);
+
     };
 }
 

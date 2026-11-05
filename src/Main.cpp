@@ -141,7 +141,7 @@ void Main::init() {
             SDL_WINDOWPOS_UNDEFINED,
             1200,
             800,
-            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
+            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
             );
 
     if (sdlWindow == NULL) {
@@ -208,14 +208,39 @@ IEventListener::EventResponse Main::onEvent(SDL_Event* evt) {
             quit();
             return EVT_DROPPED;
         }
-    } else if (evt->type == SDL_KEYDOWN) {
+    } else if (evt->type == SDL_KEYDOWN && !evt->key.repeat) {
         SDL_KeyboardEvent *e = &evt->key;
+        Uint32 flags = SDL_GetWindowFlags(sdlWindow);
+        bool fullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0;
+
+        bool altEnter = (e->keysym.sym == SDLK_RETURN) && (e->keysym.mod & KMOD_ALT);
 
         if (e->keysym.sym == SDLK_ESCAPE) {
+            if (fullscreen) {
+                // Leave fullscreen first, quit on the next press.
+                setFullscreen(false);
+                return EVT_PROCESSED;
+            }
             quit();
             return EVT_DROPPED;
+        } else if (e->keysym.sym == SDLK_F11 || altEnter) {
+            setFullscreen(!fullscreen);
+            return EVT_PROCESSED;
+        } else if (e->keysym.sym == SDLK_F10 && !fullscreen) {
+            if (flags & SDL_WINDOW_MAXIMIZED) {
+                SDL_RestoreWindow(sdlWindow);
+            } else {
+                SDL_MaximizeWindow(sdlWindow);
+            }
+            return EVT_PROCESSED;
         }
     }
 
     return EVT_IGNORED;
+}
+
+void Main::setFullscreen(bool fullscreen) {
+    // Borderless fullscreen at the desktop resolution; the renderers pick up
+    // the new size from the SDL_WINDOWEVENT_SIZE_CHANGED event.
+    SDL_SetWindowFullscreen(sdlWindow, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 }

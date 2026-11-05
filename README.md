@@ -36,6 +36,9 @@ Primárním tlačítkem myši pak lze kamerou rotovat.
 Klávesy `[` a `]` mění pokrytí oblohy mraky, `R` znovu načte shadery mraků
 a `P` přepíná režim vykreslování terénu.
 
+`F11` (nebo `Alt+Enter`) přepíná režim celé obrazovky, `F10` maximalizuje okno.
+`Esc` v režimu celé obrazovky přepne zpět do okna, jinak ukončí program.
+
 Github
 ======
 

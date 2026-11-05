@@ -38,6 +38,10 @@ namespace pgp {
 
         virtual void render();
 
+    private:
+        bool hasFocus();
+        void updateWindowSize();
+
     };
 
 }
